@@ -6,6 +6,15 @@ import { FormEvent, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import type { AccountType } from '@/types';
 
+/** Lien vers un document légal, ouvert dans un nouvel onglet pour ne pas perdre le formulaire. */
+function LegalLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} target="_blank" rel="noopener" className="text-coeur-600 underline">
+      {children}
+    </Link>
+  );
+}
+
 export default function SignupPage() {
   const { signup } = useAuth();
   const router = useRouter();
@@ -24,6 +33,8 @@ export default function SignupPage() {
         displayName: String(form.get('displayName')),
         birthdate: String(form.get('birthdate')),
         accountType: form.get('accountType') as AccountType,
+        acceptTerms: form.get('acceptTerms') === 'on',
+        gdprConsent: form.get('gdprConsent') === 'on',
       });
       router.push('/discover');
     } catch (err) {
@@ -69,10 +80,31 @@ export default function SignupPage() {
         className="w-full rounded-lg border p-3"
       />
 
-      <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" required className="mt-1" />
-        <span>J&apos;ai 18 ans ou plus et j&apos;accepte la charte de respect de la communauté.</span>
-      </label>
+      <div className="space-y-3 rounded-lg bg-coeur-50 p-3 text-sm">
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="isAdult" required className="mt-1" />
+          <span>Je certifie avoir 18 ans ou plus.</span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="acceptTerms" required className="mt-1" />
+          <span>
+            J&apos;accepte les{' '}
+            <LegalLink href="/legal/cgu">Conditions générales d&apos;utilisation</LegalLink> et la{' '}
+            <LegalLink href="/legal/charte-communaute">Charte de la communauté</LegalLink>.
+          </span>
+        </label>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" name="gdprConsent" required className="mt-1" />
+          <span>
+            J&apos;accepte que coeur-vrai traite les données révélant mon identité de genre et mon
+            orientation sexuelle, dans le seul but de me proposer des profils compatibles (
+            <LegalLink href="/legal/politique-confidentialite#sensibles">
+              Politique de confidentialité
+            </LegalLink>
+            ). Je peux retirer ce consentement à tout moment.
+          </span>
+        </label>
+      </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button

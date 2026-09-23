@@ -18,9 +18,18 @@ CREATE TABLE IF NOT EXISTS users (
   role               TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'moderator', 'admin')),
   status             TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'banned')),
   stripe_customer_id TEXT UNIQUE,
+  -- Preuves de consentement (CGU + charte, et RGPD art. 9) horodatées à l'inscription.
+  terms_accepted_date TIMESTAMPTZ,
+  terms_version       TEXT,
+  gdpr_consent_date   TIMESTAMPTZ,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Migration des bases créées avant l'ajout des consentements.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_date TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS gdpr_consent_date TIMESTAMPTZ;
 
 -- ------------------------------------------------------- ProfileHomme
 CREATE TABLE IF NOT EXISTS profiles_homme (

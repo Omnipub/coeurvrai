@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-8 px-4 text-center">
+    <main className="mx-auto flex max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-4 text-center">
       <h1 className="text-5xl font-bold text-coeur-600">coeur-vrai</h1>
       <p className="text-lg text-gray-700">
         Des rencontres sincères et respectueuses entre hommes et femmes trans.

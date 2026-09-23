@@ -10,6 +10,8 @@ interface SignupInput {
   accountType: AccountType;
   birthdate: string;
   displayName: string;
+  acceptTerms: boolean;
+  gdprConsent: boolean;
 }
 
 interface AuthContextValue {

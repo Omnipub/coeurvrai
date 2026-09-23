@@ -1,6 +1,13 @@
 export const ACCOUNT_TYPES = ['homme', 'femme_trans'] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
+/**
+ * Version en vigueur des CGU et de la charte (date de dernière mise à jour).
+ * À modifier à chaque changement des textes, en même temps que
+ * `LEGAL_VERSION` dans frontend/lib/legal.ts.
+ */
+export const TERMS_VERSION = '2026-09-23';
+
 export type UserRole = 'user' | 'moderator' | 'admin';
 export type UserStatus = 'active' | 'suspended' | 'banned';
 
@@ -25,6 +32,9 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   stripe_customer_id: string | null;
+  terms_accepted_date: Date | null;
+  terms_version: string | null;
+  gdpr_consent_date: Date | null;
   created_at: Date;
   updated_at: Date;
 }

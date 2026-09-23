@@ -8,7 +8,7 @@ import { signToken } from '../utils/jwt';
 import { ageFromBirthdate } from '../utils/age';
 import { requireAuth } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
-import { ACCOUNT_TYPES, User } from '../models/types';
+import { ACCOUNT_TYPES, TERMS_VERSION, User } from '../models/types';
 
 const router = Router();
 
@@ -18,6 +18,14 @@ const signupSchema = z.object({
   accountType: z.enum(ACCOUNT_TYPES),
   birthdate: z.string().date(),
   displayName: z.string().trim().min(2).max(40),
+  // Deux consentements distincts : CGU + charte, et traitement des données
+  // sensibles (RGPD art. 9.2.a, consentement explicite et séparé).
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: 'Vous devez accepter les CGU et la charte de la communauté' }),
+  }),
+  gdprConsent: z.literal(true, {
+    errorMap: () => ({ message: 'Votre consentement au traitement des données sensibles est requis' }),
+  }),
 });
 
 const loginSchema = z.object({
@@ -48,10 +56,11 @@ router.post(
       if (existing.rowCount) throw new HttpError(409, 'Adresse e-mail déjà utilisée');
 
       const { rows } = await client.query<User>(
-        `INSERT INTO users (email, password_hash, account_type, birthdate)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO users (email, password_hash, account_type, birthdate,
+                            terms_accepted_date, terms_version, gdpr_consent_date)
+         VALUES ($1, $2, $3, $4, now(), $5, now())
          RETURNING id, email, account_type, role`,
-        [body.email, passwordHash, body.accountType, body.birthdate],
+        [body.email, passwordHash, body.accountType, body.birthdate, TERMS_VERSION],
       );
       await client.query(`INSERT INTO ${profileTable} (user_id, display_name) VALUES ($1, $2)`, [
         rows[0].id,

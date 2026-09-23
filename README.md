@@ -51,10 +51,13 @@ coeurvrai/
     ├── .env.example
     ├── app/
     │   ├── (auth)/           /login, /signup
-    │   └── (app)/            /discover, /matches, /chat/[matchId] (espace connecté)
-    ├── components/           ProfileCard, NavBar, ReportButton
+    │   ├── (app)/            /discover, /matches, /chat/[matchId] (espace connecté)
+    │   └── legal/            /legal/cgu, /legal/politique-confidentialite,
+    │                         /legal/charte-communaute (layout + navigation commune)
+    ├── components/           ProfileCard, NavBar, ReportButton, Footer
     ├── hooks/                useAuth (contexte), useChat (Socket.io)
     ├── lib/api.ts            Client REST
+    ├── lib/legal.ts          Mentions légales (à compléter) et version des textes
     └── types/                Types partagés côté client
 ```
 
@@ -62,7 +65,7 @@ coeurvrai/
 
 | Table | Rôle |
 |---|---|
-| `users` | Compte : e-mail, hash bcrypt, `account_type` (`homme` \| `femme_trans`), date de naissance (≥ 18 ans, contrainte SQL), rôle, statut |
+| `users` | Compte : e-mail, hash bcrypt, `account_type` (`homme` \| `femme_trans`), date de naissance (≥ 18 ans, contrainte SQL), rôle, statut, preuves de consentement (`terms_accepted_date`, `terms_version`, `gdpr_consent_date`) |
 | `profiles_homme` | Profil des hommes : pseudo, bio, ville, photos, taille |
 | `profiles_femme_trans` | Profil des femmes trans : pseudo, bio, ville, photos, pronoms, `photos_matches_only` |
 | `likes` | Like unidirectionnel `(liker_id, liked_id)` |
@@ -72,6 +75,10 @@ coeurvrai/
 | `blocks` | Blocages (masquent les profils dans les deux sens et coupent le chat) |
 
 ### Règles métier
+
+- **Consentements** : l'inscription exige deux consentements distincts, `acceptTerms`
+  (CGU + charte) et `gdprConsent` (données sensibles, RGPD art. 9.2.a). Leur date et la
+  version des textes (`TERMS_VERSION`) sont enregistrées dans `users`.
 
 - **Compatibilité** : un homme ne voit et ne like que des femmes trans, et inversement.
 - **Match** : créé automatiquement quand deux likes sont réciproques ; les deux
@@ -94,7 +101,7 @@ Toutes les routes sauf `signup`/`login` exigent `Authorization: Bearer <jwt>`.
 
 | Méthode | Route | Description |
 |---|---|---|
-| POST | `/api/auth/signup` | `{ email, password, accountType, birthdate, displayName }` |
+| POST | `/api/auth/signup` | `{ email, password, accountType, birthdate, displayName, acceptTerms: true, gdprConsent: true }` |
 | POST | `/api/auth/login` | `{ email, password }` → `{ token, user }` |
 | GET | `/api/auth/me` | Utilisateur courant |
 | GET | `/api/profiles/me` | Son profil |
@@ -169,6 +176,21 @@ docker compose exec postgres psql -U coeurvrai -c \
 
 ---
 
+## Pages légales
+
+| Route | Contenu |
+|---|---|
+| `/legal/cgu` | Éditeur, inscription, tolérance zéro (prostitution, outing, transphobie), modération et recours (DSA), abonnement, rétractation, résiliation |
+| `/legal/politique-confidentialite` | Données sensibles (art. 9), bases légales, consentement, sous-traitants et transferts, durées de conservation, droits RGPD |
+| `/legal/charte-communaute` | Raison d'être, attentes envers les hommes et les femmes trans, tolérance zéro détaillée, conseils de sécurité |
+
+Avant la mise en ligne :
+
+1. compléter les valeurs entre crochets dans `frontend/lib/legal.ts` (raison sociale, RCS, hébergeur, médiateur…) ;
+2. faire relire les trois textes par un·e juriste ;
+3. à chaque modification des textes, mettre à jour **ensemble** `LEGAL_VERSION`
+   (`frontend/lib/legal.ts`) et `TERMS_VERSION` (`backend/src/models/types.ts`).
+
 ## Prochaines étapes
 
 - Abonnements premium Stripe (Checkout + webhook `STRIPE_WEBHOOK_SECRET`)
@@ -177,4 +199,7 @@ docker compose exec postgres psql -U coeurvrai -c \
 - Jeton en cookie `httpOnly` au lieu du `localStorage`
 - Interface web de modération
 - Tests automatisés (Vitest + Supertest) et CI
-- Pages légales : CGU, charte de la communauté, politique de confidentialité (RGPD)
+- Engagements des pages légales encore à coder : bouton « Supprimer mon compte » et export
+  des données dans l'interface, purge des comptes inactifs (2 ans) et des signalements
+  clos (1 an), empreinte des e-mails bannis, journalisation des IP de connexion (1 an),
+  nouvelle acceptation quand `TERMS_VERSION` change

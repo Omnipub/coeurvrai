@@ -5,3 +5,53 @@
 body {
   @apply bg-coeur-50 text-gray-900 antialiased;
 }
+
+/* Mise en forme des pages légales (/legal/*) */
+@layer components {
+  .legal {
+    @apply leading-relaxed text-gray-800;
+  }
+  .legal h1 {
+    @apply mb-2 text-2xl font-bold text-gray-900 sm:text-3xl;
+  }
+  .legal h2 {
+    @apply mb-3 mt-8 scroll-mt-20 text-xl font-semibold text-coeur-700;
+  }
+  .legal h3 {
+    @apply mb-2 mt-5 font-semibold text-gray-900;
+  }
+  .legal p,
+  .legal ul,
+  .legal ol,
+  .legal table {
+    @apply mb-3;
+  }
+  .legal ul {
+    @apply list-disc space-y-1 pl-6;
+  }
+  .legal ol {
+    @apply list-decimal space-y-1 pl-6;
+  }
+  .legal a {
+    @apply text-coeur-600 underline;
+  }
+  .legal table {
+    @apply block w-full overflow-x-auto text-sm sm:table;
+  }
+  .legal th,
+  .legal td {
+    @apply border px-3 py-2 text-left align-top;
+  }
+  .legal th {
+    @apply bg-coeur-50 font-semibold;
+  }
+  .legal .lead {
+    @apply text-gray-600;
+  }
+  .legal .callout {
+    @apply my-4 rounded-xl border-l-4 border-coeur-500 bg-coeur-50 p-4;
+  }
+  .legal .toc {
+    @apply my-4 rounded-xl bg-gray-50 p-4 text-sm;
+  }
+}
