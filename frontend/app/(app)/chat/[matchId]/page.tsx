@@ -77,7 +77,7 @@ export default function ChatPage({ params }: { params: { matchId: string } }) {
             </div>
           );
         })}
-        {otherTyping && <p className="text-sm italic text-gray-400">écrit…</p>}
+        {otherTyping && <p className="text-sm italic text-gray-600">écrit…</p>}
         <div ref={bottomRef} />
       </div>
 

@@ -1,4 +1,4 @@
-# coeur-vrai.com
+# Cœur Vrai (coeur-vrai.com)
 
 Site de rencontre bienveillant entre **hommes cis** et **femmes trans**.
 Ce dépôt contient le MVP : API temps réel + application web.
@@ -62,17 +62,23 @@ coeurvrai/
 └── frontend/
     ├── .env.example
     ├── app/
+    │   ├── (public)/         pages indexables, SSG : /, /comment-ca-marche, /securite, /faq,
+    │   │                     /a-propos, /guides, /guides/[slug], /legal/*
+    │   ├── og/[key]/         images Open Graph / Twitter générées au build (+ /og/logo)
+    │   ├── sitemap.ts, robots.ts, llms.txt/   fichiers SEO / GEO générés
     │   ├── (auth)/           /login, /signup
     │   ├── (app)/            /discover, /matches, /chat/[matchId],
     │   │                     /settings, /settings/export-data, /settings/delete-account,
     │   │                     /onboarding/verify-email, /onboarding/identity
     │   ├── verify-email/     page ouverte depuis le lien reçu par e-mail (publique)
-    │   └── legal/            /legal/cgu, /legal/politique-confidentialite,
-    │                         /legal/charte-communaute (layout + navigation commune)
     ├── components/           ProfileCard, NavBar, ReportButton, Footer, ExportDataButton, VerifiedBadge
     ├── hooks/                useAuth (contexte), useChat (Socket.io)
     ├── lib/api.ts            Client REST
     ├── lib/legal.ts          Mentions légales (à compléter) et version des textes
+    ├── lib/site.ts           Marque « Cœur Vrai », URL, hreflang, chemins privés
+    ├── lib/seo.ts, jsonld.ts Métadonnées (canonical, OG, Twitter) et données structurées
+    ├── lib/content/          Registre des pages publiques, FAQ, guides
+    ├── scripts/check-seo.mjs Audit SEO / confidentialité (npm run check:seo)
     └── types/                Types partagés côté client
 ```
 
@@ -256,6 +262,42 @@ Variables optionnelles : `TEST_DATABASE_URL`, `TEST_REDIS_URL` (défaut : base
 | frontend | `npm run lint` / `typecheck` | ESLint / TypeScript |
 
 ---
+
+## SEO, GEO et confidentialité
+
+**Règle absolue : aucune page privée n'est indexable** (un profil indexé = risque d'outing).
+
+| Protection | Où |
+|---|---|
+| Tout le site est `noindex, nofollow` **par défaut** ; seules les pages publiques l'activent via `buildMetadata` | `app/layout.tsx`, `lib/seo.ts` |
+| Espace membre : connexion obligatoire, aucun contenu privé rendu côté serveur | `components/AppShell.tsx` |
+| En-tête `X-Robots-Tag: noindex, nofollow, noarchive` sur les chemins privés | `next.config.mjs` |
+| `Disallow` des chemins privés, absents du sitemap | `app/robots.ts`, `app/sitemap.ts` |
+| API : `X-Robots-Tag` sur chaque réponse + `robots.txt` « Disallow: / » | `backend/src/app.ts` |
+
+Pages publiques : rendu statique (SSG), title < 60 caractères, description < 155,
+canonical, hreflang (`fr`, `fr-FR`, `fr-BE`, `fr-CH`, `fr-CA`, `x-default` — même URL
+tant qu'il n'existe pas de version régionale, voir `HREFLANG_BASES`), Open Graph + Twitter
+card avec image dédiée (`/og/<clé>`), un seul `<h1>` suivi d'un paragraphe qui répond
+directement à la question principale, fil d'Ariane, dates de mise à jour visibles.
+
+Données structurées : `Organization` + `WebSite` (accueil), `FAQPage` (FAQ),
+`BreadcrumbList` (toutes les pages sauf l'accueil), `Article` (guides).
+`/llms.txt` résume le site pour les moteurs de réponse IA.
+
+Performance / accessibilité : police Inter auto-hébergée (`next/font/local`, aucune
+requête tierce), `next/image` pour les photos (AVIF/WebP), lien « Aller au contenu »,
+focus clavier visible. Mesures Lighthouse (mobile) au moment de l'écriture : 99–100 en
+Performance, Accessibilité, Bonnes pratiques et SEO ; LCP ≈ 2 s, CLS = 0.
+
+Ajouter une page publique : l'enregistrer dans `lib/content/pages.ts` (titre,
+description, date), exporter `metadata = pageMetadata(PAGES.x)` et commencer la page
+par `<PageIntro>`. Puis vérifier :
+
+```bash
+cd frontend && npm run build && npm start   # autre terminal :
+npm run check:seo                            # 0 problème attendu
+```
 
 ## Pages légales
 

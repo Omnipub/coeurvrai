@@ -4,8 +4,11 @@
  * ⚠️ Les valeurs entre crochets sont à compléter avant la mise en ligne,
  * et l'ensemble des textes doit être relu par un·e juriste.
  */
+import { BRAND } from './site';
+
 export const LEGAL = {
-  siteName: 'coeur-vrai.com',
+  siteName: BRAND,
+  domain: 'coeur-vrai.com',
   siteUrl: 'https://coeur-vrai.com',
   company: '[Raison sociale]',
   legalForm: '[Forme juridique et capital social]',

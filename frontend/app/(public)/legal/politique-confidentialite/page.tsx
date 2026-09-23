@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { PAGES } from '@/lib/content/pages';
 import { LEGAL } from '@/lib/legal';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Politique de confidentialité — coeur-vrai',
-  description:
-    'Comment coeur-vrai.com protège vos données personnelles et sensibles, conformément au RGPD.',
-};
+export const metadata: Metadata = pageMetadata(PAGES.privacy);
 
 const dpo = <a href={`mailto:${LEGAL.dpoEmail}`}>{LEGAL.dpoEmail}</a>;
 
 export default function PrivacyPage() {
   return (
     <>
+      <Breadcrumbs items={[{ name: PAGES.privacy.label, path: PAGES.privacy.path }]} />
       <h1>Politique de confidentialité</h1>
       <p className="lead">
         Utiliser un site de rencontre entre hommes et femmes trans révèle des informations

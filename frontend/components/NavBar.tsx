@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { BRAND } from '@/lib/site';
 
 const LINKS = [
   { href: '/discover', label: 'Découvrir' },
@@ -15,10 +16,11 @@ export function NavBar() {
   const { logout } = useAuth();
 
   return (
-    <nav className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur">
+      <nav aria-label="Espace membre">
       <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
         <Link href="/discover" className="text-lg font-bold text-coeur-600">
-          coeur-vrai
+          {BRAND}
         </Link>
         <div className="flex items-center gap-4 text-sm">
           {LINKS.map((l) => (
@@ -35,6 +37,7 @@ export function NavBar() {
           </button>
         </div>
       </div>
-    </nav>
+      </nav>
+    </header>
   );
 }

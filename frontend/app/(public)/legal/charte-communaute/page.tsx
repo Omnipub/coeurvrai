@@ -1,16 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { PAGES } from '@/lib/content/pages';
 import { LEGAL } from '@/lib/legal';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Charte de la communauté — coeur-vrai',
-  description:
-    'Nos valeurs et nos règles de respect pour des rencontres sincères entre hommes et femmes trans.',
-};
+export const metadata: Metadata = pageMetadata(PAGES.charter);
 
 export default function CharterPage() {
   return (
     <>
+      <Breadcrumbs items={[{ name: PAGES.charter.label, path: PAGES.charter.path }]} />
       <h1>Charte de la communauté</h1>
       <p className="lead">
         Cette charte fait partie des{' '}
@@ -18,7 +18,7 @@ export default function CharterPage() {
         s’engage à la respecter en créant son compte.
       </p>
 
-      <h2 id="pourquoi">Pourquoi coeur-vrai existe</h2>
+      <h2 id="pourquoi">Pourquoi Cœur Vrai existe</h2>
       <p>
         Beaucoup de femmes trans rencontrent sur les applications généralistes du
         harcèlement, des propos transphobes, des demandes intrusives ou des hommes qui cherchent
@@ -51,8 +51,8 @@ export default function CharterPage() {
           blocage se respectent, sans insister ni chercher à recontacter la personne ailleurs.
         </li>
         <li>
-          <strong>Protéger la vie privée des autres</strong> : ce qui est partagé sur coeur-vrai
-          reste sur coeur-vrai. Pas de captures d’écran, pas de recherches sur l’identité réelle
+          <strong>Protéger la vie privée des autres</strong> : ce qui est partagé sur Cœur Vrai
+          reste sur Cœur Vrai. Pas de captures d’écran, pas de recherches sur l’identité réelle
           de quelqu’un.
         </li>
         <li>
@@ -133,7 +133,7 @@ export default function CharterPage() {
       <ul>
         <li>
           révéler ou menacer de révéler qu’une personne est trans, qu’elle fréquente des
-          femmes trans ou qu’elle est inscrite sur coeur-vrai ;
+          femmes trans ou qu’elle est inscrite sur Cœur Vrai ;
         </li>
         <li>divulguer un ancien prénom, une identité civile, une adresse ou un lieu de travail ;</li>
         <li>faire circuler des captures d’écran de profils ou de conversations ;</li>
@@ -194,7 +194,7 @@ export default function CharterPage() {
 
       <h2 id="securite">Conseils de sécurité pour vos rencontres</h2>
       <ul>
-        <li>Faites connaissance sur coeur-vrai avant de partager votre numéro ou vos réseaux.</li>
+        <li>Faites connaissance sur Cœur Vrai avant de partager votre numéro ou vos réseaux.</li>
         <li>Pour un premier rendez-vous, choisissez un lieu public et prévenez un·e proche.</li>
         <li>Gardez vos propres moyens de transport pour pouvoir partir quand vous le souhaitez.</li>
         <li>N’envoyez jamais d’argent à quelqu’un que vous n’avez pas rencontré.</li>

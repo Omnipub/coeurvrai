@@ -96,7 +96,7 @@ export default function SignupPage() {
         <label className="flex items-start gap-2">
           <input type="checkbox" name="gdprConsent" required className="mt-1" />
           <span>
-            J&apos;accepte que coeur-vrai traite les données révélant mon identité de genre et mon
+            J&apos;accepte que Cœur Vrai traite les données révélant mon identité de genre et mon
             orientation sexuelle, dans le seul but de me proposer des profils compatibles (
             <LegalLink href="/legal/politique-confidentialite#sensibles">
               Politique de confidentialité

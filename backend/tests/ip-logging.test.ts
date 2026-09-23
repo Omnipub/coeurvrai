@@ -96,3 +96,12 @@ describe('Version des textes', () => {
     expect(res.body.consents).toMatchObject({ termsVersion: TERMS_VERSION, upToDate: true });
   });
 });
+
+describe('Non-indexation de l’API', () => {
+  it('chaque réponse porte X-Robots-Tag noindex et robots.txt interdit tout', async () => {
+    const res = await api().get('/api/account/consent-version').expect(200);
+    expect(res.headers['x-robots-tag']).toMatch(/noindex/);
+    const robots = await api().get('/robots.txt').expect(200);
+    expect(robots.text).toContain('Disallow: /');
+  });
+});

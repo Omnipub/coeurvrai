@@ -21,6 +21,14 @@ export function createApp() {
 
   app.set('trust proxy', 1);
   app.use(helmet());
+  // L'API ne doit jamais être indexée (profils, messages : risque d'outing).
+  app.use((_req, res, next) => {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    next();
+  });
+  app.get('/robots.txt', (_req, res) => {
+    res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+  });
   app.use(cors({ origin: config.corsOrigin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
   app.use(
     express.json({

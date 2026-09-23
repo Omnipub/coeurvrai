@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { api } from '@/lib/api';
 import type { MatchSummary } from '@/types';
@@ -27,10 +28,9 @@ export default function MatchesPage() {
       {matches.map((m) => (
         <li key={m.matchId}>
           <Link href={`/chat/${m.matchId}`} className="flex items-center gap-3 p-4 hover:bg-coeur-50">
-            <div className="h-12 w-12 flex-none overflow-hidden rounded-full bg-coeur-100">
+            <div className="relative h-12 w-12 flex-none overflow-hidden rounded-full bg-coeur-100">
               {m.user.photo && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.user.photo} alt="" className="h-full w-full object-cover" />
+                <ProfilePhoto src={m.user.photo} alt={`Photo de ${m.user.displayName}`} sizes="48px" />
               )}
             </div>
             <div className="min-w-0">

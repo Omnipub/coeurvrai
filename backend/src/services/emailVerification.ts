@@ -27,19 +27,19 @@ export async function sendVerificationEmail(userId: string, email: string): Prom
   const link = `${config.appUrl}/verify-email?token=${encodeURIComponent(token)}`;
   await sendMail({
     to: email,
-    subject: 'Confirmez votre adresse e-mail — coeur-vrai',
+    subject: 'Confirmez votre adresse e-mail — Cœur Vrai',
     text: [
       'Bonjour,',
       '',
-      'Pour confirmer votre adresse e-mail sur coeur-vrai, ouvrez ce lien (valable 24 heures) :',
+      'Pour confirmer votre adresse e-mail sur Cœur Vrai, ouvrez ce lien (valable 24 heures) :',
       link,
       '',
       'Si vous n’êtes pas à l’origine de cette inscription, ignorez simplement ce message.',
       '',
-      'L’équipe coeur-vrai',
+      'L’équipe Cœur Vrai',
     ].join('\n'),
     html: `<p>Bonjour,</p>
-<p>Pour confirmer votre adresse e-mail sur coeur-vrai, cliquez sur le bouton ci-dessous (lien valable 24&nbsp;heures).</p>
+<p>Pour confirmer votre adresse e-mail sur Cœur Vrai, cliquez sur le bouton ci-dessous (lien valable 24&nbsp;heures).</p>
 <p><a href="${escapeHtml(link)}" style="display:inline-block;padding:12px 20px;border-radius:999px;background:#e11d48;color:#fff;text-decoration:none">Confirmer mon adresse</a></p>
 <p style="color:#666;font-size:13px">Ou copiez ce lien : ${escapeHtml(link)}</p>
 <p style="color:#666;font-size:13px">Si vous n’êtes pas à l’origine de cette inscription, ignorez simplement ce message.</p>`,

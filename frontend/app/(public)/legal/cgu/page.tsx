@@ -1,15 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { PAGES } from '@/lib/content/pages';
 import { LEGAL } from '@/lib/legal';
+import { pageMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
-  title: 'Conditions générales d’utilisation — coeur-vrai',
-  description: 'Règles d’accès et d’utilisation du service de rencontre coeur-vrai.com.',
-};
+export const metadata: Metadata = pageMetadata(PAGES.cgu);
 
 export default function CguPage() {
   return (
     <>
+      <Breadcrumbs items={[{ name: PAGES.cgu.label, path: PAGES.cgu.path }]} />
       <h1>Conditions générales d’utilisation</h1>
       <p className="lead">
         Les présentes conditions générales d’utilisation (« CGU ») encadrent l’accès et

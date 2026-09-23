@@ -1,4 +1,5 @@
 import type { Profile } from '@/types';
+import { ProfilePhoto } from './ProfilePhoto';
 import { VerifiedBadge } from './VerifiedBadge';
 
 interface Props {
@@ -14,8 +15,12 @@ export function ProfileCard({ profile, onLike, onPass }: Props) {
     <article className="overflow-hidden rounded-2xl bg-white shadow-md">
       <div className="relative aspect-[3/4] bg-coeur-100">
         {photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt={profile.displayName} className="h-full w-full object-cover" />
+          <ProfilePhoto
+            src={photo}
+            alt={`Photo de profil de ${profile.displayName}, ${profile.age} ans`}
+            sizes="(max-width: 672px) 100vw, 640px"
+            priority
+          />
         ) : (
           <div className="flex h-full items-center justify-center p-6 text-center text-sm text-coeur-700">
             {profile.photosMatchesOnly

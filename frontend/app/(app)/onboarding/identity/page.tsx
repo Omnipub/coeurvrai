@@ -103,7 +103,7 @@ export default function IdentityStep() {
           <li>✓ Environ 1 minute, depuis votre téléphone ou votre ordinateur (caméra requise)</li>
           <li>✓ Aucun nom ni document n’est affiché sur votre profil : seul le badge est visible</li>
           <li>
-            ✓ Réalisée par notre prestataire Onfido ; coeur-vrai ne conserve que le résultat
+            ✓ Réalisée par notre prestataire Onfido ; Cœur Vrai ne conserve que le résultat
             (vérifié ou non)
           </li>
         </ul>

@@ -55,3 +55,19 @@ body {
     @apply my-4 rounded-xl bg-gray-50 p-4 text-sm;
   }
 }
+
+/* Accessibilité : focus clavier toujours visible (WCAG 2.4.7). */
+@layer base {
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-coeur-700;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

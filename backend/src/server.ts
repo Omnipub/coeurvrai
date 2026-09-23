@@ -11,7 +11,7 @@ async function start(): Promise<void> {
   const scheduler = startScheduler();
   server.on('close', () => scheduler?.stop());
   server.listen(config.port, () => {
-    console.log(`API coeur-vrai démarrée sur http://localhost:${config.port}`);
+    console.log(`API Cœur Vrai démarrée sur http://localhost:${config.port}`);
   });
 }
 
