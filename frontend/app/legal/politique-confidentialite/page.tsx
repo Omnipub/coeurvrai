@@ -260,7 +260,7 @@ export default function PrivacyPage() {
             <td>
               Tant que le compte est actif. Suppression immédiate à la suppression du compte
               (purge des sauvegardes sous 30 jours). Compte inactif depuis 2 ans : supprimé
-              après e-mail de préavis.
+              automatiquement, après un e-mail de préavis envoyé 30 jours avant.
             </td>
           </tr>
           <tr>
@@ -283,8 +283,8 @@ export default function PrivacyPage() {
             </td>
           </tr>
           <tr>
-            <td>Données de connexion (adresse IP, horodatage)</td>
-            <td>1 an (obligation légale de conservation)</td>
+            <td>Données de connexion (adresse IP, horodatage, dernière activité)</td>
+            <td>1 an, puis suppression automatique</td>
           </tr>
           <tr>
             <td>Factures et pièces comptables</td>
@@ -313,13 +313,19 @@ export default function PrivacyPage() {
       <h2 id="droits">10. Vos droits</h2>
       <p>Vous disposez des droits suivants sur vos données :</p>
       <ul>
-        <li><strong>Accès</strong> : obtenir une copie de vos données (art. 15) ;</li>
+        <li>
+          <strong>Accès</strong> : obtenir une copie de vos données (art. 15), en un clic depuis
+          Paramètres › Exporter mes données ;
+        </li>
         <li><strong>Rectification</strong> : corriger des données inexactes (art. 16), directement depuis votre profil ;</li>
         <li>
-          <strong>Effacement</strong> : supprimer votre compte à tout moment depuis votre profil,
+          <strong>Effacement</strong> : supprimer votre compte à tout moment depuis Paramètres,
           ou nous le demander (art. 17) ;
         </li>
-        <li><strong>Portabilité</strong> : recevoir vos données dans un format structuré et lisible par machine (art. 20) ;</li>
+        <li>
+          <strong>Portabilité</strong> : recevoir vos données dans un format structuré et lisible
+          par machine (art. 20) — l’export est au format JSON ;
+        </li>
         <li><strong>Limitation</strong> du traitement (art. 18) ;</li>
         <li><strong>Opposition</strong> aux traitements fondés sur notre intérêt légitime (art. 21) ;</li>
         <li><strong>Retrait du consentement</strong> à tout moment (art. 7.3) ;</li>
@@ -329,7 +335,9 @@ export default function PrivacyPage() {
         </li>
       </ul>
       <p>
-        Pour exercer vos droits, écrivez à {dpo} depuis l’adresse e-mail de votre compte. Nous
+        L’export et la suppression sont disponibles directement dans les Paramètres ; vous y
+        voyez aussi votre dernière activité et l’historique de vos adresses IP. Pour toute autre
+        demande, écrivez à {dpo} depuis l’adresse e-mail de votre compte. Nous
         répondons dans un délai d’un mois (prolongeable de deux mois pour les demandes
         complexes, auquel cas nous vous en informons). Nous pourrons vous demander de confirmer
         votre identité en cas de doute raisonnable.

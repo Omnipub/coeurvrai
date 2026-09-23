@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 const LINKS = [
   { href: '/discover', label: 'Découvrir' },
   { href: '/matches', label: 'Matchs' },
+  { href: '/settings', label: 'Paramètres' },
 ];
 
 export function NavBar() {

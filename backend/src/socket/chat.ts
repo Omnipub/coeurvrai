@@ -4,6 +4,7 @@ import { pool } from '../utils/db';
 import { redis } from '../utils/redis';
 import { TokenPayload, verifyToken } from '../utils/jwt';
 import { findActiveMatchForUser, isBlocked, otherUser } from '../db/queries';
+import { socketClientIp, trackActivity } from '../services/activity';
 
 /**
  * Chat temps réel.
@@ -51,6 +52,7 @@ export function registerChat(io: Server): void {
       if (rows[0]?.status !== 'active') return next(new Error('unauthorized'));
 
       (socket.data as SocketData).user = user;
+      trackActivity(user.sub, socketClientIp(socket.handshake.headers, socket.handshake.address));
       next();
     } catch {
       next(new Error('unauthorized'));

@@ -127,7 +127,7 @@ export async function resolveReport(
   return withTransaction(async (client) => {
     const { rows } = await client.query<Report>(
       `UPDATE reports
-          SET status = $3, moderator_id = $2, resolution_note = $4, resolved_at = now()
+          SET status = $3, moderator_id = $2, resolution_note = $4, closed_at = now()
         WHERE id = $1 AND status IN ('pending', 'reviewing')
         RETURNING *`,
       [reportId, moderatorId, action === 'dismiss' ? 'dismissed' : 'resolved', note],

@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS users (
   terms_accepted_date TIMESTAMPTZ,
   terms_version       TEXT,
   gdpr_consent_date   TIMESTAMPTZ,
+  -- Activité et données de connexion (conservées 1 an, purgées par jobs/cleanup.ts).
+  last_activity_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_ip               TEXT,
+  ip_logs               JSONB NOT NULL DEFAULT '[]', -- [{ "ip": "…", "date": "ISO 8601" }]
+  inactivity_warned_at  TIMESTAMPTZ,                 -- préavis avant suppression pour inactivité
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -30,6 +35,11 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_date TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_version TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS gdpr_consent_date TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_ip TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_logs JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS inactivity_warned_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS users_last_activity_idx ON users (last_activity_at);
 
 -- ------------------------------------------------------- ProfileHomme
 CREATE TABLE IF NOT EXISTS profiles_homme (
@@ -103,9 +113,20 @@ CREATE TABLE IF NOT EXISTS reports (
   moderator_id    UUID REFERENCES users(id) ON DELETE SET NULL,
   resolution_note TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-  resolved_at     TIMESTAMPTZ,
+  closed_at       TIMESTAMPTZ, -- date de clôture (resolved / dismissed), purge à 1 an
   CHECK (reporter_id <> reported_id)
 );
+-- Migration : resolved_at → closed_at.
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_name = 'reports' AND column_name = 'resolved_at') THEN
+    UPDATE reports SET closed_at = resolved_at WHERE closed_at IS NULL;
+    ALTER TABLE reports DROP COLUMN resolved_at;
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS reports_closed_idx ON reports (closed_at) WHERE closed_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS reports_status_idx ON reports (status, created_at);
 CREATE INDEX IF NOT EXISTS reports_reported_idx ON reports (reported_id);
 

@@ -220,7 +220,7 @@ export default function CguPage() {
       </p>
       <h3>8.2 Suppression du compte</h3>
       <p>
-        Vous pouvez supprimer votre compte à tout moment depuis votre profil. La suppression
+        Vous pouvez supprimer votre compte à tout moment depuis Paramètres › Supprimer mon compte. La suppression
         est <strong>définitive</strong> : votre profil, vos photos, vos likes, vos matchs et vos
         messages sont effacés, sous réserve des durées de conservation légales décrites dans la{' '}
         <Link href="/legal/politique-confidentialite#conservation">
@@ -232,7 +232,7 @@ export default function CguPage() {
       <p>
         Nous pouvons suspendre ou supprimer un compte en cas de manquement aux présentes CGU ou
         à la Charte, dans les conditions de l’article 6. Un compte inactif pendant deux ans est
-        supprimé après un e-mail de préavis.
+        supprimé automatiquement, après un préavis envoyé 30 jours avant par e-mail.
       </p>
 
       <h2 id="responsabilite">9. Responsabilité</h2>

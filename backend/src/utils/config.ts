@@ -20,6 +20,8 @@ export const config = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
   bcryptRounds: Number(process.env.BCRYPT_ROUNDS ?? 12),
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? '',
+  /** Expression cron des purges RGPD ; vide pour désactiver (ex. instances secondaires). */
+  cleanupCron: process.env.CLEANUP_CRON ?? '0 3 * * *',
 };
 
 if (config.env === 'production' && config.jwtSecret === 'change-me') {

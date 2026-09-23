@@ -86,15 +86,6 @@ router.put(
   }),
 );
 
-/** DELETE /api/profiles/me — suppression définitive du compte (RGPD). */
-router.delete(
-  '/me',
-  asyncHandler(async (req, res) => {
-    await pool.query('DELETE FROM users WHERE id = $1', [req.user!.sub]);
-    res.status(204).end();
-  }),
-);
-
 /**
  * GET /api/profiles/discover — profils compatibles pas encore likés,
  * hors comptes bloqués (dans les deux sens) et comptes inactifs.

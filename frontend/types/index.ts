@@ -47,3 +47,24 @@ export const REPORT_REASONS = {
 } as const;
 
 export type ReportReason = keyof typeof REPORT_REASONS;
+
+export interface IpLogEntry {
+  ip: string;
+  date: string;
+}
+
+export interface AccountInfo {
+  email: string;
+  accountType: AccountType;
+  createdAt: string;
+  lastActivityAt: string;
+  lastIp: string | null;
+  ipLogs: IpLogEntry[];
+  consents: {
+    termsVersion: string | null;
+    termsAcceptedDate: string | null;
+    gdprConsentDate: string | null;
+    currentVersion: string;
+    upToDate: boolean;
+  };
+}

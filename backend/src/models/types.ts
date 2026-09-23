@@ -23,6 +23,11 @@ export const REPORT_REASONS = [
 export type ReportReason = (typeof REPORT_REASONS)[number];
 export type ReportStatus = 'pending' | 'reviewing' | 'resolved' | 'dismissed';
 
+export interface IpLogEntry {
+  ip: string;
+  date: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -35,6 +40,10 @@ export interface User {
   terms_accepted_date: Date | null;
   terms_version: string | null;
   gdpr_consent_date: Date | null;
+  last_activity_at: Date;
+  last_ip: string | null;
+  ip_logs: IpLogEntry[];
+  inactivity_warned_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -86,7 +95,7 @@ export interface Report {
   moderator_id: string | null;
   resolution_note: string | null;
   created_at: Date;
-  resolved_at: Date | null;
+  closed_at: Date | null;
 }
 
 /** Les likes et matchs ne sont possibles qu'entre un homme et une femme trans. */

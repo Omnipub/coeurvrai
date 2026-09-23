@@ -1,8 +1,13 @@
 import Link from 'next/link';
 
-export default function Home() {
+export default function Home({ searchParams }: { searchParams: { compte?: string } }) {
   return (
     <main className="mx-auto flex max-w-2xl flex-1 flex-col items-center justify-center gap-8 px-4 text-center">
+      {searchParams.compte === 'supprime' && (
+        <p role="status" className="rounded-xl bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
+          Votre compte et vos données ont été supprimés. Merci d’avoir fait partie de coeur-vrai.
+        </p>
+      )}
       <h1 className="text-5xl font-bold text-coeur-600">coeur-vrai</h1>
       <p className="text-lg text-gray-700">
         Des rencontres sincères et respectueuses entre hommes et femmes trans.

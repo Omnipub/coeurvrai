@@ -8,6 +8,7 @@ import { signToken } from '../utils/jwt';
 import { ageFromBirthdate } from '../utils/age';
 import { requireAuth } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
+import { recordActivity } from '../services/activity';
 import { ACCOUNT_TYPES, TERMS_VERSION, User } from '../models/types';
 
 const router = Router();
@@ -69,6 +70,7 @@ router.post(
       return rows[0];
     });
 
+    await recordActivity(user.id, req.ip ?? null, { isLogin: true });
     const token = signToken({ sub: user.id, accountType: user.account_type, role: user.role });
     res.status(201).json({ token, user: publicUser(user) });
   }),
@@ -89,6 +91,7 @@ router.post(
     if (!user || !valid) throw new HttpError(401, 'Identifiants invalides');
     if (user.status !== 'active') throw new HttpError(403, 'Compte suspendu');
 
+    await recordActivity(user.id, req.ip ?? null, { isLogin: true });
     const token = signToken({ sub: user.id, accountType: user.account_type, role: user.role });
     res.json({ token, user: publicUser(user) });
   }),

@@ -3,6 +3,7 @@ import { pool } from '../utils/db';
 import { HttpError } from '../utils/http';
 import { TokenPayload, verifyToken } from '../utils/jwt';
 import { UserRole } from '../models/types';
+import { trackActivity } from '../services/activity';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -37,6 +38,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 
     // Le rôle fait foi en base, pas dans le jeton (révocation immédiate).
     req.user = { ...payload, role: rows[0].role };
+    trackActivity(payload.sub, req.ip ?? null);
     next();
   } catch (err) {
     next(err);
