@@ -19,6 +19,8 @@ Ce dépôt contient le MVP : API temps réel + application web.
 | Base de données | PostgreSQL 15 (driver `pg`, SQL brut) |
 | Cache / files | Redis 7 (file de modération, rate limiting) |
 | Authentification | JWT (`jsonwebtoken`) + mots de passe `bcrypt` |
+| E-mails | nodemailer (SMTP) |
+| Vérification d'identité | Onfido Studio (`@onfido/api` côté serveur, `onfido-sdk-ui` côté web) |
 | Paiements | Stripe API (client prêt, abonnements à venir) |
 | Frontend | Next.js 14 (App Router) + React 18 + Tailwind CSS 3 |
 
@@ -39,11 +41,15 @@ coeurvrai/
 │       │   ├── account.ts    paramètres, export RGPD, suppression de compte, consentements
 │       │   ├── profile.ts    CRUD profil, découverte
 │       │   ├── like.ts       likes, matchs, historique des messages
-│       │   └── report.ts     signalements, blocages, back-office modération
+│       │   ├── report.ts     signalements, blocages, back-office modération
+│       │   └── verification.ts  statut, jeton Onfido, webhook Onfido
 │       ├── socket/chat.ts    Chat temps réel (Socket.io)
 │       ├── services/
 │       │   ├── account.ts    Suppression complète et export JSON d'un compte
 │       │   ├── activity.ts   Dernière activité + journal des IP de connexion
+│       │   ├── emailVerification.ts  Liens de vérification d'e-mail (24 h, jeton haché)
+│       │   ├── mailer.ts     Envoi d'e-mails (nodemailer ; console si SMTP_URL vide)
+│       │   ├── onfido.ts     Client Onfido, vérification de signature des webhooks
 │       │   ├── moderation.ts File de signalements (Redis + PostgreSQL)
 │       │   ├── profiles.ts   Lecture/projection des profils
 │       │   └── payments.ts   Client Stripe
@@ -58,10 +64,12 @@ coeurvrai/
     ├── app/
     │   ├── (auth)/           /login, /signup
     │   ├── (app)/            /discover, /matches, /chat/[matchId],
-    │   │                     /settings, /settings/export-data, /settings/delete-account
+    │   │                     /settings, /settings/export-data, /settings/delete-account,
+    │   │                     /onboarding/verify-email, /onboarding/identity
+    │   ├── verify-email/     page ouverte depuis le lien reçu par e-mail (publique)
     │   └── legal/            /legal/cgu, /legal/politique-confidentialite,
     │                         /legal/charte-communaute (layout + navigation commune)
-    ├── components/           ProfileCard, NavBar, ReportButton, Footer, ExportDataButton
+    ├── components/           ProfileCard, NavBar, ReportButton, Footer, ExportDataButton, VerifiedBadge
     ├── hooks/                useAuth (contexte), useChat (Socket.io)
     ├── lib/api.ts            Client REST
     ├── lib/legal.ts          Mentions légales (à compléter) et version des textes
@@ -72,7 +80,7 @@ coeurvrai/
 
 | Table | Rôle |
 |---|---|
-| `users` | Compte : e-mail, hash bcrypt, `account_type` (`homme` \| `femme_trans`), date de naissance (≥ 18 ans, contrainte SQL), rôle, statut, preuves de consentement (`terms_accepted_date`, `terms_version`, `gdpr_consent_date`), activité (`last_activity_at`, `last_ip`, `ip_logs` JSONB `[{ip, date}]`, `inactivity_warned_at`) |
+| `users` | Compte : e-mail, hash bcrypt, `account_type` (`homme` \| `femme_trans`), date de naissance (≥ 18 ans, contrainte SQL), rôle, statut, preuves de consentement (`terms_accepted_date`, `terms_version`, `gdpr_consent_date`), activité (`last_activity_at`, `last_ip`, `ip_logs` JSONB `[{ip, date}]`, `inactivity_warned_at`), vérification (`email_verified`, `email_verified_at`, `onfido_applicant_id`, `onfido_check_id`, `onfido_check_status`, `verified_badge` colonne générée) |
 | `profiles_homme` | Profil des hommes : pseudo, bio, ville, photos, taille |
 | `profiles_femme_trans` | Profil des femmes trans : pseudo, bio, ville, photos, pronoms, `photos_matches_only` |
 | `likes` | Like unidirectionnel `(liker_id, liked_id)` |
@@ -97,6 +105,15 @@ coeurvrai/
   ≥ 3 personnes en 24 h passent en **file prioritaire**.
 - **Sanctions** : `suspend` / `ban` changent le statut du compte ; ses sockets
   sont déconnectés et toutes ses requêtes sont refusées (le statut est vérifié en base à chaque requête).
+- **Vérification d'e-mail** : un lien (valable 24 h, jeton stocké haché, usage unique)
+  est envoyé à l'inscription et peut être renvoyé (3/h) ; un nouvel envoi invalide le précédent.
+- **Vérification d'identité (facultative)** : selfie vidéo via un workflow Onfido Studio,
+  après consentement explicite (données biométriques). Aucune donnée personnelle n'est
+  envoyée à Onfido (applicant au nom générique) ; seuls les identifiants et le statut sont
+  stockés. Le webhook est authentifié (HMAC `X-SHA2-Signature`) et le statut est relu via
+  l'API Onfido. L'applicant est supprimé chez Onfido avec le compte.
+- **Badge « Profil vérifié »** : `verified_badge = email_verified AND onfido_check_status = 'approved'`
+  (colonne générée PostgreSQL), exposé comme `verified` dans les profils et les matchs.
 - **Journal de connexion** : à chaque inscription/connexion et à chaque changement d'IP,
   une entrée `{ ip, date }` est ajoutée à `users.ip_logs` ; `last_activity_at` est mis à
   jour au plus toutes les 5 minutes (REST et Socket.io). Les entrées de plus d'1 an sont
@@ -117,6 +134,11 @@ Toutes les routes sauf `signup`/`login` exigent `Authorization: Bearer <jwt>`.
 |---|---|---|
 | POST | `/api/auth/signup` | `{ email, password, accountType, birthdate, displayName, acceptTerms: true, gdprConsent: true }` |
 | POST | `/api/auth/login` | `{ email, password }` → `{ token, user }` |
+| POST | `/api/auth/send-verification-email` | Renvoie le lien de vérification d'e-mail |
+| POST | `/api/auth/verify-email` | *(public)* `{ token }` — confirme l'adresse |
+| GET | `/api/verification/status` | État des vérifications (e-mail, Onfido, badge) |
+| POST | `/api/verification/onfido-token` | `{ consent: true }` → `{ sdkToken, workflowRunId }` |
+| POST | `/api/verification/onfido-check` | *(webhook Onfido signé)* enregistre le résultat |
 | GET | `/api/auth/me` | Utilisateur courant |
 | GET | `/api/account/consent-version` | *(public)* Version en vigueur des textes légaux |
 | GET | `/api/account` | Paramètres : dernière activité, historique des IP, consentements |
@@ -181,6 +203,18 @@ Pour donner le rôle modérateur à un compte :
 docker compose exec postgres psql -U coeurvrai -c \
   "UPDATE users SET role = 'moderator' WHERE email = 'moi@exemple.fr';"
 ```
+
+### Configurer Onfido
+
+1. Créer un compte Onfido (région **EU**) et un jeton API sandbox → `ONFIDO_API_TOKEN`.
+2. Dans Onfido Studio, créer un workflow de vérification par selfie (tâche *Motion* /
+   liveness) avec des issues `approved` / `declined` → `ONFIDO_WORKFLOW_ID`.
+3. Déclarer un webhook vers `https://<api>/api/verification/onfido-check` pour
+   l'événement `workflow_run.completed` → son jeton va dans `ONFIDO_WEBHOOK_TOKEN`.
+4. En local, exposer l'API (ex. `ngrok http 3001`) pour recevoir le webhook.
+
+Sans `ONFIDO_API_TOKEN`, l'écran de vérification indique que la fonctionnalité n'est pas
+disponible. Sans `SMTP_URL`, les e-mails (et leurs liens) s'affichent dans la console de l'API.
 
 ### Purges RGPD automatiques
 

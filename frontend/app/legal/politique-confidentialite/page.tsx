@@ -37,6 +37,7 @@ export default function PrivacyPage() {
           <li><a href="#sensibles">Données sensibles (article 9 du RGPD)</a></li>
           <li><a href="#finalites">Finalités et bases légales</a></li>
           <li><a href="#consentement">Consentement et retrait</a></li>
+          <li><a href="#verification">Vérification de l’e-mail et de l’identité</a></li>
           <li><a href="#visibilite">Qui voit vos informations</a></li>
           <li><a href="#tiers">Sous-traitants et transferts hors UE</a></li>
           <li><a href="#conservation">Durées de conservation</a></li>
@@ -82,6 +83,13 @@ export default function PrivacyPage() {
           <tr>
             <td>Modération</td>
             <td>Signalements émis ou reçus, messages cités, décisions de modération</td>
+          </tr>
+          <tr>
+            <td>Vérification</td>
+            <td>
+              Date de confirmation de l’e-mail ; identifiants et statut de la vérification
+              d’identité Onfido (facultative), date du consentement correspondant
+            </td>
           </tr>
           <tr>
             <td>Consentements</td>
@@ -180,7 +188,45 @@ export default function PrivacyPage() {
         traitements effectués auparavant.
       </p>
 
-      <h2 id="visibilite">6. Qui voit vos informations</h2>
+      <h2 id="verification">6. Vérification de l’e-mail et de l’identité</h2>
+      <h3>Confirmation de l’adresse e-mail</h3>
+      <p>
+        À l’inscription, nous vous envoyons un lien de confirmation valable 24 heures. Nous
+        conservons uniquement une empreinte chiffrée (hachage) de ce lien, effacée dès son
+        utilisation, et la date de confirmation de votre adresse. Base légale : exécution du
+        contrat et sécurité du Service.
+      </p>
+      <h3>Vérification d’identité par selfie (facultative)</h3>
+      <p>
+        Pour obtenir le badge « Profil vérifié », vous pouvez réaliser un court selfie vidéo
+        analysé par notre prestataire <strong>Onfido</strong>, afin de vérifier que vous êtes une
+        personne réelle (détection du vivant). Cette analyse implique des{' '}
+        <strong>données biométriques</strong>, qui relèvent de l’article 9 du RGPD : elle n’a
+        lieu qu’avec votre <strong>consentement explicite</strong>, recueilli juste avant la
+        capture par une case à cocher distincte. Elle est entièrement facultative et son refus
+        n’a aucune conséquence sur l’utilisation du Service.
+      </p>
+      <ul>
+        <li>
+          Nous ne transmettons à Onfido ni votre nom, ni votre e-mail, ni votre date de
+          naissance : votre dossier y est créé sous un nom générique.
+        </li>
+        <li>
+          Nous ne recevons ni ne conservons votre selfie : seuls les identifiants Onfido, le
+          statut de la vérification (par exemple « approuvée » ou « refusée ») et sa date sont
+          enregistrés.
+        </li>
+        <li>
+          Le badge affiché aux autres membres indique seulement que l’e-mail est confirmé et que
+          la vérification a réussi.
+        </li>
+        <li>
+          Lorsque vous supprimez votre compte, nous demandons à Onfido de supprimer votre dossier
+          et les données associées.
+        </li>
+      </ul>
+
+      <h2 id="visibilite">7. Qui voit vos informations</h2>
       <ul>
         <li>
           <strong>Membres</strong> : votre profil (pseudo, âge, ville, biographie, photos) n’est
@@ -205,7 +251,7 @@ export default function PrivacyPage() {
         </li>
       </ul>
 
-      <h2 id="tiers">7. Sous-traitants et transferts hors UE</h2>
+      <h2 id="tiers">8. Sous-traitants et transferts hors UE</h2>
       <p>
         Nous faisons appel à des prestataires (sous-traitants) liés par contrat et tenus de
         protéger vos données. Ils n’agissent que sur nos instructions.
@@ -234,6 +280,16 @@ export default function PrivacyPage() {
             </td>
           </tr>
           <tr>
+            <td>Onfido (groupe Entrust)</td>
+            <td>Vérification d’identité par selfie (facultative)</td>
+            <td>
+              Région de traitement : Union européenne. Transferts éventuels hors UE encadrés par
+              des clauses contractuelles types. Onfido ne reçoit aucune donnée de profil. [À
+              compléter selon le contrat : entité contractante et durée de conservation chez
+              Onfido.]
+            </td>
+          </tr>
+          <tr>
             <td>[Prestataire d’envoi d’e-mails]</td>
             <td>E-mails transactionnels (confirmation, sécurité, facturation)</td>
             <td>[À compléter — de préférence Union européenne]</td>
@@ -246,7 +302,7 @@ export default function PrivacyPage() {
         données avec des annonceurs, courtiers en données ou réseaux sociaux.
       </p>
 
-      <h2 id="conservation">8. Durées de conservation</h2>
+      <h2 id="conservation">9. Durées de conservation</h2>
       <table>
         <thead>
           <tr>
@@ -266,6 +322,14 @@ export default function PrivacyPage() {
           <tr>
             <td>Match rompu</td>
             <td>Les messages ne sont plus accessibles ; ils sont effacés avec les comptes concernés</td>
+          </tr>
+          <tr>
+            <td>Lien de confirmation d’e-mail</td>
+            <td>24 heures (effacé dès utilisation)</td>
+          </tr>
+          <tr>
+            <td>Statut de la vérification d’identité</td>
+            <td>Tant que le compte est actif ; dossier Onfido supprimé avec le compte</td>
           </tr>
           <tr>
             <td>Preuves de consentement (dates et version)</td>
@@ -297,7 +361,7 @@ export default function PrivacyPage() {
         </tbody>
       </table>
 
-      <h2 id="securite">9. Sécurité</h2>
+      <h2 id="securite">10. Sécurité</h2>
       <ul>
         <li>Connexions chiffrées (HTTPS) ;</li>
         <li>mots de passe hachés avec bcrypt, jamais stockés en clair ;</li>
@@ -310,7 +374,7 @@ export default function PrivacyPage() {
         informons la CNIL sous 72 heures et vous prévenons dans les meilleurs délais.
       </p>
 
-      <h2 id="droits">10. Vos droits</h2>
+      <h2 id="droits">11. Vos droits</h2>
       <p>Vous disposez des droits suivants sur vos données :</p>
       <ul>
         <li>
@@ -351,7 +415,7 @@ export default function PrivacyPage() {
         ).
       </p>
 
-      <h2 id="cookies">11. Cookies et stockage local</h2>
+      <h2 id="cookies">12. Cookies et stockage local</h2>
       <p>
         {LEGAL.siteName} n’utilise <strong>aucun cookie publicitaire ni traceur tiers</strong>.
         Nous conservons uniquement dans votre navigateur (stockage local) le jeton de session
@@ -359,14 +423,14 @@ export default function PrivacyPage() {
         du Service et ne requiert pas de consentement. Il est effacé à la déconnexion.
       </p>
 
-      <h2 id="mineurs">12. Mineur·es</h2>
+      <h2 id="mineurs">13. Mineur·es</h2>
       <p>
         Le Service est strictement réservé aux personnes majeures. Si nous apprenons qu’un
         compte appartient à une personne mineure, il est supprimé sans délai. Vous pouvez nous
         le signaler via l’application (motif « Personne mineure ») ou à {dpo}.
       </p>
 
-      <h2 id="modifications">13. Modifications</h2>
+      <h2 id="modifications">14. Modifications</h2>
       <p>
         Nous pouvons mettre à jour cette politique. En cas de changement important, vous en
         serez informé·e par e-mail ou dans l’application avant son entrée en vigueur. Voir aussi

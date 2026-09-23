@@ -12,6 +12,7 @@ import accountRouter from './api/account';
 import profileRouter from './api/profile';
 import likeRouter from './api/like';
 import reportRouter from './api/report';
+import verificationRouter from './api/verification';
 import { registerChat } from './socket/chat';
 
 /** Construit l'application (sans écouter de port), pour le serveur et les tests. */
@@ -21,7 +22,14 @@ export function createApp() {
   app.set('trust proxy', 1);
   app.use(helmet());
   app.use(cors({ origin: config.corsOrigin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
-  app.use(express.json({ limit: '100kb' }));
+  app.use(
+    express.json({
+      limit: '100kb',
+      verify: (req, _res, buf) => {
+        (req as express.Request).rawBody = buf;
+      },
+    }),
+  );
 
   app.get('/health', async (_req, res) => {
     try {
@@ -37,6 +45,7 @@ export function createApp() {
   app.use('/api/account', accountRouter);
   app.use('/api/profiles', profileRouter);
   app.use('/api/likes', likeRouter);
+  app.use('/api/verification', verificationRouter);
   app.use('/api', reportRouter);
 
   app.use(notFound);

@@ -1,4 +1,5 @@
 import type { Profile } from '@/types';
+import { VerifiedBadge } from './VerifiedBadge';
 
 interface Props {
   profile: Profile;
@@ -31,6 +32,7 @@ export function ProfileCard({ profile, onLike, onPass }: Props) {
             <span className="ml-2 text-sm font-normal text-gray-500">({profile.pronouns})</span>
           )}
         </h2>
+        {profile.verified && <VerifiedBadge />}
         {profile.city && <p className="text-sm text-gray-500">{profile.city}</p>}
         {profile.bio && <p className="text-gray-700">{profile.bio}</p>}
 

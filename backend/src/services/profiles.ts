@@ -17,6 +17,8 @@ export interface PublicProfile {
   heightCm?: number | null;
   pronouns?: string | null;
   photosMatchesOnly?: boolean;
+  /** Badge « Profil vérifié » : e-mail vérifié + contrôle Onfido approuvé. */
+  verified: boolean;
 }
 
 /** Sélection SQL commune : profil + âge, pour un type de compte donné. */
@@ -24,7 +26,7 @@ export function profileSelect(type: AccountType): string {
   const extra =
     type === 'homme' ? 'p.height_cm' : 'p.pronouns, p.photos_matches_only';
   return `
-    SELECT u.id, u.account_type,
+    SELECT u.id, u.account_type, u.verified_badge,
            date_part('year', age(u.birthdate))::int AS age,
            p.display_name, p.city, p.bio, p.photos, ${extra}
       FROM users u
@@ -41,6 +43,7 @@ export function toPublicProfile(row: any, opts: { revealPhotos: boolean }): Publ
     city: row.city,
     bio: row.bio,
     photos: row.photos,
+    verified: row.verified_badge,
   };
   if (row.account_type === 'homme') {
     profile.heightCm = row.height_cm;

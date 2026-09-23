@@ -15,6 +15,10 @@ const env = {
   JWT_SECRET: 'test-secret',
   BCRYPT_ROUNDS: '4',
   CLEANUP_CRON: '',
+  APP_URL: 'https://app.test',
+  SMTP_URL: '',
+  ONFIDO_API_TOKEN: '',
+  ONFIDO_WEBHOOK_TOKEN: 'test-webhook-token',
 };
 Object.assign(process.env, env);
 

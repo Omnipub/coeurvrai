@@ -36,7 +36,7 @@ export default function SignupPage() {
         acceptTerms: form.get('acceptTerms') === 'on',
         gdprConsent: form.get('gdprConsent') === 'on',
       });
-      router.push('/discover');
+      router.push('/onboarding/verify-email');
     } catch (err) {
       setError((err as Error).message);
     } finally {

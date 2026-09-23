@@ -3,6 +3,8 @@ import request from 'supertest';
 import { createApp } from '../src/app';
 import { pool } from '../src/utils/db';
 import { connectRedis, redis } from '../src/utils/redis';
+import { outbox } from '../src/services/mailer';
+import { setOnfidoClient } from '../src/services/onfido';
 
 export const { app, io } = createApp();
 export const api = () => request(app);
@@ -16,6 +18,8 @@ export function setupTestDb(): void {
   beforeEach(async () => {
     await redis.flushDb();
     await pool.query('TRUNCATE users, reports RESTART IDENTITY CASCADE');
+    outbox.length = 0;
+    setOnfidoClient(null);
   });
   afterAll(async () => {
     io.close();
@@ -57,6 +61,17 @@ export async function signup(
 }
 
 export const auth = (user: TestUser) => ({ Authorization: `Bearer ${user.token}` });
+
+/** Jeton du dernier lien de vérification envoyé à `email`. */
+export function lastVerificationToken(email: string): string {
+  const mail = [...outbox].reverse().find((m) => m.to === email);
+  if (!mail) throw new Error(`Aucun e-mail envoyé à ${email}`);
+  const match = /\/verify-email\?token=([A-Za-z0-9_-]+)/.exec(mail.text);
+  if (!match) throw new Error('Lien de vérification introuvable');
+  return decodeURIComponent(match[1]);
+}
+
+export { outbox };
 
 /** Insère un message directement (le chat passe normalement par Socket.io). */
 export async function insertMessage(matchId: string, senderId: string, content: string): Promise<string> {

@@ -1,5 +1,6 @@
 import { pool } from '../utils/db';
 import { IP_RETENTION, PRUNED_IP_LOGS_SQL } from '../services/activity';
+import { deleteOnfidoApplicants } from '../services/onfido';
 
 /**
  * Purges RGPD automatiques (voir la politique de confidentialité, § 8) :
@@ -48,11 +49,13 @@ export async function purgeInactiveAccounts(): Promise<{ warned: number; deleted
   for (const { email } of warned.rows) await sendInactivityNotice(email);
 
   // Suppression en cascade : profil, photos, likes, matchs, messages, blocages, signalements.
-  const deleted = await pool.query(
+  const deleted = await pool.query<{ onfido_applicant_id: string | null }>(
     `DELETE FROM users
       WHERE last_activity_at < now() - INTERVAL '${INACTIVITY_LIMIT}'
-        AND inactivity_warned_at < now() - INTERVAL '${INACTIVITY_NOTICE}'`,
+        AND inactivity_warned_at < now() - INTERVAL '${INACTIVITY_NOTICE}'
+      RETURNING onfido_applicant_id`,
   );
+  await deleteOnfidoApplicants(deleted.rows.map((r) => r.onfido_applicant_id));
 
   return { warned: warned.rowCount ?? 0, deleted: deleted.rowCount ?? 0 };
 }

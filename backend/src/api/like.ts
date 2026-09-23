@@ -90,7 +90,7 @@ router.get(
 
     const { rows } = await pool.query(
       `SELECT m.id AS match_id, m.created_at,
-              o.id AS user_id, p.display_name, p.photos,
+              o.id AS user_id, o.verified_badge, p.display_name, p.photos,
               last.content AS last_message, last.created_at AS last_message_at
          FROM matches m
          JOIN users o ON o.id = CASE WHEN m.user_a = $1 THEN m.user_b ELSE m.user_a END
@@ -110,7 +110,12 @@ router.get(
       matches: rows.map((r) => ({
         matchId: r.match_id,
         createdAt: r.created_at,
-        user: { id: r.user_id, displayName: r.display_name, photo: r.photos[0] ?? null },
+        user: {
+          id: r.user_id,
+          displayName: r.display_name,
+          photo: r.photos[0] ?? null,
+          verified: r.verified_badge,
+        },
         lastMessage: r.last_message
           ? { content: r.last_message, createdAt: r.last_message_at }
           : null,

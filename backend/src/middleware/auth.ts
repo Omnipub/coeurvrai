@@ -10,6 +10,8 @@ declare global {
   namespace Express {
     interface Request {
       user?: TokenPayload;
+      /** Corps brut de la requête (vérification des signatures de webhooks). */
+      rawBody?: Buffer;
     }
   }
 }

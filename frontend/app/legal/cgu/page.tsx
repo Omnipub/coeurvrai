@@ -96,6 +96,14 @@ export default function CguPage() {
         durée de vie de votre compte pour les afficher dans le cadre du Service.
       </p>
 
+      <h3>Badge « Profil vérifié »</h3>
+      <p>
+        Le badge indique que le ou la membre a confirmé son adresse e-mail et réussi une
+        vérification par selfie auprès de notre prestataire Onfido. Cette vérification,
+        facultative, atteste qu’il s’agit d’une personne réelle ; elle ne garantit ni son
+        identité civile, ni la sincérité de ses intentions. Restez vigilant·e.
+      </p>
+
       <h2 id="tolerance-zero">5. Tolérance zéro</h2>
       <div className="callout">
         <p>

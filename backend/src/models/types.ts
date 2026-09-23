@@ -23,6 +23,16 @@ export const REPORT_REASONS = [
 export type ReportReason = (typeof REPORT_REASONS)[number];
 export type ReportStatus = 'pending' | 'reviewing' | 'resolved' | 'dismissed';
 
+/** Statuts d'un workflow run Onfido Studio. */
+export type OnfidoStatus =
+  | 'awaiting_input'
+  | 'processing'
+  | 'approved'
+  | 'declined'
+  | 'review'
+  | 'abandoned'
+  | 'error';
+
 export interface IpLogEntry {
   ip: string;
   date: string;
@@ -44,6 +54,17 @@ export interface User {
   last_ip: string | null;
   ip_logs: IpLogEntry[];
   inactivity_warned_at: Date | null;
+  email_verified: boolean;
+  email_verified_at: Date | null;
+  email_verification_token_hash: string | null;
+  email_verification_expires_at: Date | null;
+  onfido_applicant_id: string | null;
+  onfido_check_id: string | null;
+  onfido_check_status: OnfidoStatus | null;
+  onfido_consent_at: Date | null;
+  onfido_checked_at: Date | null;
+  /** Colonne générée : e-mail vérifié ET vérification Onfido approuvée. */
+  verified_badge: boolean;
   created_at: Date;
   updated_at: Date;
 }

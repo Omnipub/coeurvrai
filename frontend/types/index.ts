@@ -5,6 +5,9 @@ export interface AuthUser {
   email: string;
   accountType: AccountType;
   role: 'user' | 'moderator' | 'admin';
+  emailVerified: boolean;
+  /** Badge « Profil vérifié » (e-mail + Onfido). */
+  verified: boolean;
 }
 
 export interface Profile {
@@ -18,12 +21,13 @@ export interface Profile {
   heightCm?: number | null;
   pronouns?: string | null;
   photosMatchesOnly?: boolean;
+  verified: boolean;
 }
 
 export interface MatchSummary {
   matchId: string;
   createdAt: string;
-  user: { id: string; displayName: string; photo: string | null };
+  user: { id: string; displayName: string; photo: string | null; verified: boolean };
   lastMessage: { content: string; createdAt: string } | null;
 }
 
@@ -47,6 +51,25 @@ export const REPORT_REASONS = {
 } as const;
 
 export type ReportReason = keyof typeof REPORT_REASONS;
+
+export type OnfidoStatus =
+  | 'awaiting_input'
+  | 'processing'
+  | 'approved'
+  | 'declined'
+  | 'review'
+  | 'abandoned'
+  | 'error';
+
+export interface VerificationStatus {
+  email: string;
+  emailVerified: boolean;
+  emailVerifiedAt: string | null;
+  onfidoStatus: OnfidoStatus | null;
+  onfidoCheckedAt: string | null;
+  verifiedBadge: boolean;
+  onfidoAvailable: boolean;
+}
 
 export interface IpLogEntry {
   ip: string;

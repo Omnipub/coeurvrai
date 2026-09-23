@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { api } from '@/lib/api';
 import type { MatchSummary } from '@/types';
 
@@ -33,7 +34,9 @@ export default function MatchesPage() {
               )}
             </div>
             <div className="min-w-0">
-              <p className="font-medium">{m.user.displayName}</p>
+              <p className="font-medium">
+                {m.user.displayName} {m.user.verified && <VerifiedBadge size="sm" />}
+              </p>
               <p className="truncate text-sm text-gray-500">
                 {m.lastMessage?.content ?? 'Nouveau match — dites bonjour !'}
               </p>

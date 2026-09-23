@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import { ReportButton } from '@/components/ReportButton';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { api } from '@/lib/api';
@@ -50,7 +51,9 @@ export default function ChatPage({ params }: { params: { matchId: string } }) {
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
       <header className="flex items-center justify-between pb-3">
-        <h1 className="text-lg font-semibold">{other?.displayName ?? 'Conversation'}</h1>
+        <h1 className="text-lg font-semibold">
+          {other?.displayName ?? 'Conversation'} {other?.verified && <VerifiedBadge size="sm" />}
+        </h1>
         <div className="flex items-center gap-3">
           <button onClick={unmatch} className="text-sm text-gray-500 underline">
             Fin du match

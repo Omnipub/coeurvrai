@@ -2,6 +2,7 @@ import type { Server } from 'socket.io';
 import { pool, withTransaction } from '../utils/db';
 import { AccountType, TERMS_VERSION, User } from '../models/types';
 import { PROFILE_TABLE } from './profiles';
+import { deleteOnfidoApplicants } from './onfido';
 
 /**
  * Supprime définitivement un compte et toutes ses données.
@@ -11,17 +12,25 @@ import { PROFILE_TABLE } from './profiles';
  * matchs (envoyés et reçus), blocages et signalements émis ou reçus.
  * Les membres avec qui la personne avait matché sont notifiés (`match:closed`).
  *
+ * L'applicant Onfido éventuel (et donc selfie / vidéo de vérification) est
+ * également supprimé chez Onfido.
+ *
  * TODO Stripe : résilier l'abonnement actif avant suppression.
  */
 export async function deleteAccount(userId: string, io?: Server): Promise<void> {
-  const matchIds = await withTransaction(async (client) => {
+  const { matchIds, applicantId } = await withTransaction(async (client) => {
     const { rows } = await client.query<{ id: string }>(
       `SELECT id FROM matches WHERE (user_a = $1 OR user_b = $1) AND unmatched_at IS NULL`,
       [userId],
     );
-    await client.query('DELETE FROM users WHERE id = $1', [userId]);
-    return rows.map((r) => r.id);
+    const deleted = await client.query<{ onfido_applicant_id: string | null }>(
+      'DELETE FROM users WHERE id = $1 RETURNING onfido_applicant_id',
+      [userId],
+    );
+    return { matchIds: rows.map((r) => r.id), applicantId: deleted.rows[0]?.onfido_applicant_id ?? null };
   });
+
+  await deleteOnfidoApplicants([applicantId]);
 
   if (io) {
     for (const matchId of matchIds) {
@@ -36,6 +45,7 @@ export interface AccountExport {
   exportedAt: string;
   account: Record<string, unknown>;
   consents: Record<string, unknown>;
+  verification: Record<string, unknown>;
   connectionData: Record<string, unknown>;
   profile: Record<string, unknown> | null;
   likesGiven: unknown[];
@@ -99,6 +109,16 @@ export async function buildExport(userId: string): Promise<AccountExport> {
       termsAcceptedDate: user.terms_accepted_date,
       gdprConsentDate: user.gdpr_consent_date,
       currentTermsVersion: TERMS_VERSION,
+    },
+    verification: {
+      emailVerified: user.email_verified,
+      emailVerifiedAt: user.email_verified_at,
+      onfidoApplicantId: user.onfido_applicant_id,
+      onfidoCheckId: user.onfido_check_id,
+      onfidoCheckStatus: user.onfido_check_status,
+      onfidoConsentAt: user.onfido_consent_at,
+      onfidoCheckedAt: user.onfido_checked_at,
+      verifiedBadge: user.verified_badge,
     },
     connectionData: {
       lastActivityAt: user.last_activity_at,

@@ -9,6 +9,7 @@ import { ageFromBirthdate } from '../utils/age';
 import { requireAuth } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
 import { recordActivity } from '../services/activity';
+import { sendVerificationEmail, verifyEmailToken } from '../services/emailVerification';
 import { ACCOUNT_TYPES, TERMS_VERSION, User } from '../models/types';
 
 const router = Router();
@@ -34,8 +35,18 @@ const loginSchema = z.object({
   password: z.string().min(1).max(128),
 });
 
-function publicUser(user: Pick<User, 'id' | 'email' | 'account_type' | 'role'>) {
-  return { id: user.id, email: user.email, accountType: user.account_type, role: user.role };
+type PublicUserRow = Pick<User, 'id' | 'email' | 'account_type' | 'role' | 'email_verified' | 'verified_badge'>;
+const PUBLIC_USER_COLUMNS = 'id, email, account_type, role, email_verified, verified_badge';
+
+function publicUser(user: PublicUserRow) {
+  return {
+    id: user.id,
+    email: user.email,
+    accountType: user.account_type,
+    role: user.role,
+    emailVerified: user.email_verified,
+    verified: user.verified_badge,
+  };
 }
 
 /** POST /api/auth/signup — création de compte + profil vide. */
@@ -60,7 +71,7 @@ router.post(
         `INSERT INTO users (email, password_hash, account_type, birthdate,
                             terms_accepted_date, terms_version, gdpr_consent_date)
          VALUES ($1, $2, $3, $4, now(), $5, now())
-         RETURNING id, email, account_type, role`,
+         RETURNING ${PUBLIC_USER_COLUMNS}`,
         [body.email, passwordHash, body.accountType, body.birthdate, TERMS_VERSION],
       );
       await client.query(`INSERT INTO ${profileTable} (user_id, display_name) VALUES ($1, $2)`, [
@@ -71,6 +82,8 @@ router.post(
     });
 
     await recordActivity(user.id, req.ip ?? null, { isLogin: true });
+    // Un échec d'envoi ne doit pas bloquer l'inscription : le membre pourra renvoyer le lien.
+    await sendVerificationEmail(user.id, user.email).catch((err) => console.error('[mail]', err));
     const token = signToken({ sub: user.id, accountType: user.account_type, role: user.role });
     res.status(201).json({ token, user: publicUser(user) });
   }),
@@ -103,10 +116,39 @@ router.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { rows } = await pool.query<User>(
-      'SELECT id, email, account_type, role FROM users WHERE id = $1',
+      `SELECT ${PUBLIC_USER_COLUMNS} FROM users WHERE id = $1`,
       [req.user!.sub],
     );
     res.json({ user: publicUser(rows[0]) });
+  }),
+);
+
+/** POST /api/auth/send-verification-email — (r)envoie le lien de vérification. */
+router.post(
+  '/send-verification-email',
+  requireAuth,
+  rateLimit('verification-email', 3, 60 * 60),
+  asyncHandler(async (req, res) => {
+    const { rows } = await pool.query<User>('SELECT email, email_verified FROM users WHERE id = $1', [
+      req.user!.sub,
+    ]);
+    if (rows[0].email_verified) throw new HttpError(409, 'Adresse e-mail déjà vérifiée');
+    await sendVerificationEmail(req.user!.sub, rows[0].email);
+    res.status(202).json({ sent: true });
+  }),
+);
+
+const verifyEmailSchema = z.object({ token: z.string().min(20).max(200) });
+
+/** POST /api/auth/verify-email — valide le lien reçu par e-mail (public). */
+router.post(
+  '/verify-email',
+  rateLimit('verify-email', 20, 60 * 60),
+  asyncHandler(async (req, res) => {
+    const { token } = verifyEmailSchema.parse(req.body);
+    const userId = await verifyEmailToken(token);
+    if (!userId) throw new HttpError(400, 'Lien de vérification invalide ou expiré');
+    res.json({ verified: true });
   }),
 );
 

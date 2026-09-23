@@ -22,6 +22,17 @@ export const config = {
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? '',
   /** Expression cron des purges RGPD ; vide pour désactiver (ex. instances secondaires). */
   cleanupCron: process.env.CLEANUP_CRON ?? '0 3 * * *',
+  /** URL publique du frontend, utilisée dans les liens envoyés par e-mail. */
+  appUrl: (process.env.APP_URL ?? process.env.CORS_ORIGIN ?? 'http://localhost:3000').replace(/\/$/, ''),
+  /** SMTP (ex. smtps://user:pass@smtp.exemple.fr:465). Vide : e-mails journalisés, non envoyés. */
+  smtpUrl: process.env.SMTP_URL ?? '',
+  mailFrom: process.env.MAIL_FROM ?? 'coeur-vrai <no-reply@coeur-vrai.com>',
+  onfido: {
+    apiToken: process.env.ONFIDO_API_TOKEN ?? '',
+    region: (process.env.ONFIDO_REGION ?? 'EU').toUpperCase() as 'EU' | 'US' | 'CA',
+    workflowId: process.env.ONFIDO_WORKFLOW_ID ?? '',
+    webhookToken: process.env.ONFIDO_WEBHOOK_TOKEN ?? '',
+  },
 };
 
 if (config.env === 'production' && config.jwtSecret === 'change-me') {

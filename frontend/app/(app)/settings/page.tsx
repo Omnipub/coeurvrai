@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ExportDataButton } from '@/components/ExportDataButton';
+import { VerifiedBadge } from '@/components/VerifiedBadge';
+import { useAuth } from '@/hooks/useAuth';
 import { api, formatDate } from '@/lib/api';
 import type { AccountInfo } from '@/types';
 
@@ -18,6 +20,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function SettingsPage() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const load = useCallback(() => {
     api<AccountInfo>('/api/account')
@@ -53,6 +56,31 @@ export default function SettingsPage() {
           <dt className="text-gray-500">Dernière adresse IP</dt>
           <dd className="font-mono">{account.lastIp ?? '—'}</dd>
         </dl>
+      </Section>
+
+      <Section title="Vérification">
+        <ul className="space-y-1 text-sm">
+          <li>
+            Adresse e-mail :{' '}
+            {user?.emailVerified ? (
+              <span className="text-green-700">confirmée</span>
+            ) : (
+              <Link href="/onboarding/verify-email" className="text-coeur-600 underline">
+                à confirmer
+              </Link>
+            )}
+          </li>
+          <li>
+            Identité :{' '}
+            {user?.verified ? (
+              <VerifiedBadge />
+            ) : (
+              <Link href="/onboarding/identity" className="text-coeur-600 underline">
+                vérifier avec un selfie (facultatif)
+              </Link>
+            )}
+          </li>
+        </ul>
       </Section>
 
       <Section title="Historique des connexions">

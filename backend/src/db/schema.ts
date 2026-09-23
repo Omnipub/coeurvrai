@@ -27,6 +27,18 @@ CREATE TABLE IF NOT EXISTS users (
   last_ip               TEXT,
   ip_logs               JSONB NOT NULL DEFAULT '[]', -- [{ "ip": "…", "date": "ISO 8601" }]
   inactivity_warned_at  TIMESTAMPTZ,                 -- préavis avant suppression pour inactivité
+  -- Vérification de l'adresse e-mail (jeton stocké haché, valable 24 h).
+  email_verified                BOOLEAN NOT NULL DEFAULT false,
+  email_verified_at             TIMESTAMPTZ,
+  email_verification_token_hash TEXT UNIQUE,
+  email_verification_expires_at TIMESTAMPTZ,
+  -- Vérification d'identité Onfido (facultative) : seul le statut est conservé ici.
+  onfido_applicant_id  TEXT UNIQUE,
+  onfido_check_id      TEXT UNIQUE,  -- identifiant du workflow run Onfido Studio
+  onfido_check_status  TEXT,         -- awaiting_input | processing | approved | declined | review | abandoned | error
+  onfido_consent_at    TIMESTAMPTZ,  -- consentement explicite (données biométriques, RGPD art. 9)
+  onfido_checked_at    TIMESTAMPTZ,
+  verified_badge BOOLEAN GENERATED ALWAYS AS (email_verified AND onfido_check_status IS NOT DISTINCT FROM 'approved') STORED,
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -40,6 +52,17 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_ip TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS ip_logs JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS inactivity_warned_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS users_last_activity_idx ON users (last_activity_at);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token_hash TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onfido_applicant_id TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onfido_check_id TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onfido_check_status TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onfido_consent_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onfido_checked_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verified_badge BOOLEAN
+  GENERATED ALWAYS AS (email_verified AND onfido_check_status IS NOT DISTINCT FROM 'approved') STORED;
 
 -- ------------------------------------------------------- ProfileHomme
 CREATE TABLE IF NOT EXISTS profiles_homme (
