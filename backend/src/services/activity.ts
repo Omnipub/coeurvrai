@@ -1,4 +1,5 @@
 import type { IncomingHttpHeaders } from 'http';
+import { logger } from '../utils/logger';
 import { pool } from '../utils/db';
 import { blindIndex, CTX, decrypt, encrypt } from '../utils/crypto';
 import type { IpLogEntry } from '../models/types';
@@ -68,7 +69,7 @@ export function readConnectionData(user: { last_ip: string | null; ip_logs: IpLo
 
 /** Version « fire-and-forget » : une erreur de journalisation ne bloque jamais la requête. */
 export function trackActivity(userId: string, ip: string | null, opts?: { isLogin?: boolean }) {
-  recordActivity(userId, ip, opts).catch((err) => console.error('[activity]', err));
+  recordActivity(userId, ip, opts).catch((err) => logger.error('activity.failed', err));
 }
 
 /**

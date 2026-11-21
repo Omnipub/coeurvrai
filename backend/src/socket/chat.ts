@@ -1,4 +1,5 @@
 import { Server, Socket } from 'socket.io';
+import { logger } from '../utils/logger';
 import { z } from 'zod';
 import { pool } from '../utils/db';
 import { redis } from '../utils/redis';
@@ -75,7 +76,7 @@ export function registerChat(io: Server): void {
         try {
           await handler(payload, reply);
         } catch (err) {
-          if (!(err instanceof z.ZodError)) console.error('[socket]', err);
+          if (!(err instanceof z.ZodError)) logger.error('socket.handler_failed', err);
           reply({ error: 'Requête invalide' });
         }
       };

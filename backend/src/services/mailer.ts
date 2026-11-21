@@ -1,4 +1,5 @@
 import nodemailer, { Transporter } from 'nodemailer';
+import { logger } from '../utils/logger';
 import { config } from '../utils/config';
 
 export interface MailMessage {
@@ -23,8 +24,11 @@ export async function sendMail(message: MailMessage): Promise<void> {
   await transport.sendMail({ from: config.mailFrom, ...message });
   if (!config.smtpUrl) {
     outbox.push(message);
-    if (config.env !== 'test') {
+    // Affichage en clair réservé au développement local (jamais en production).
+    if (config.env === 'development') {
       console.info(`[mail] (non envoyé, SMTP_URL vide) à ${message.to} — ${message.subject}\n${message.text}`);
+    } else if (config.env === 'production') {
+      logger.warn('mail.not_sent', { reason: 'SMTP_URL vide' });
     }
   }
 }

@@ -1,4 +1,5 @@
 import http from 'http';
+import { requestLog } from './middleware/requestLog';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -51,6 +52,7 @@ export function createApp() {
     }
   });
 
+  app.use('/api', requestLog);
   app.use('/api', csrfProtection);
   app.use('/api/auth', authRouter);
   app.use('/api/account', accountRouter);

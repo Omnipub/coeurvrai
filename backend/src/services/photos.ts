@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { logger, pseudonym } from '../utils/logger';
 import sharp from 'sharp';
 import { pool } from '../utils/db';
 import { config } from '../utils/config';
@@ -145,7 +146,7 @@ export async function deleteUserFiles(userIds: string[]): Promise<void> {
   for (const id of userIds) {
     await storage.deletePrefix(userPrefix(id)).catch((err) => {
       // Rattrapé par purgeOrphanPhotos (jobs/cleanup.ts) lors du prochain nettoyage.
-      console.error('[photos] suppression des fichiers impossible :', (err as Error).message);
+      logger.error('photos.delete_files_failed', err, { user: pseudonym(id) });
     });
   }
 }

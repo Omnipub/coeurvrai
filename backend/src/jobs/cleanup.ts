@@ -1,4 +1,7 @@
 import { pool } from '../utils/db';
+import { logger } from '../utils/logger';
+import { sendMail } from '../services/mailer';
+import { config } from '../utils/config';
 import { IP_RETENTION, PRUNED_IP_LOGS_SQL } from '../services/activity';
 import { deleteOnfidoApplicants } from '../services/onfido';
 import { deleteUserFiles, userPrefix } from '../services/photos';
@@ -29,12 +32,26 @@ export interface CleanupResult {
   orphanPhotoFoldersDeleted: number;
 }
 
-/**
- * Envoie le préavis de suppression pour inactivité.
- * TODO : brancher le prestataire d'e-mails transactionnels.
- */
+/** Envoie le préavis de suppression pour inactivité (SMTP Brevo en production). */
 async function sendInactivityNotice(email: string): Promise<void> {
-  console.info(`[cleanup] préavis d'inactivité à envoyer à ${email}`);
+  await sendMail({
+    to: email,
+    subject: 'Votre compte Cœur Vrai sera supprimé dans 30 jours',
+    text: [
+      'Bonjour,',
+      '',
+      'Vous ne vous êtes pas connecté·e à Cœur Vrai depuis près de deux ans.',
+      'Conformément à notre politique de confidentialité, votre compte et toutes vos données seront supprimés dans 30 jours.',
+      '',
+      `Pour conserver votre compte, il suffit de vous reconnecter : ${config.appUrl}/login`,
+      '',
+      'L’équipe Cœur Vrai',
+    ].join('\n'),
+    html: `<p>Bonjour,</p>
+<p>Vous ne vous êtes pas connecté·e à Cœur Vrai depuis près de deux ans. Conformément à notre politique de confidentialité, votre compte et toutes vos données seront supprimés dans <strong>30&nbsp;jours</strong>.</p>
+<p>Pour conserver votre compte, il suffit de <a href="${config.appUrl}/login">vous reconnecter</a>.</p>
+<p>L’équipe Cœur Vrai</p>`,
+  });
 }
 
 /**
@@ -49,7 +66,9 @@ export async function purgeInactiveAccounts(): Promise<{ warned: number; deleted
         AND last_activity_at < now() - INTERVAL '${INACTIVITY_LIMIT}' + INTERVAL '${INACTIVITY_NOTICE}'
       RETURNING email`,
   );
-  for (const { email } of warned.rows) await sendInactivityNotice(email);
+  for (const { email } of warned.rows) {
+    await sendInactivityNotice(email).catch((err) => logger.error('cleanup.notice_failed', err));
+  }
 
   // Suppression en cascade : profil, photos, likes, matchs, messages, blocages, signalements.
   const deleted = await pool.query<{ id: string; onfido_applicant_id: string | null }>(
@@ -132,7 +151,7 @@ export async function runCleanup(): Promise<CleanupResult | null> {
         ipLogsPruned: await purgeOldIpLogs(),
         orphanPhotoFoldersDeleted: await purgeOrphanPhotos(),
       };
-      console.info('[cleanup]', JSON.stringify(result));
+      logger.info('cleanup.done', { ...result });
       return result;
     } finally {
       await lock.query('SELECT pg_advisory_unlock($1)', [CLEANUP_LOCK_KEY]);

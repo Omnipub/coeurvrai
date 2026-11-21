@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { logger } from '../utils/logger';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { pool, withTransaction } from '../utils/db';
@@ -83,7 +84,7 @@ router.post(
 
     await recordActivity(user.id, req.ip ?? null, { isLogin: true });
     // Un échec d'envoi ne doit pas bloquer l'inscription : le membre pourra renvoyer le lien.
-    await sendVerificationEmail(user.id, user.email).catch((err) => console.error('[mail]', err));
+    await sendVerificationEmail(user.id, user.email).catch((err) => logger.error('mail.verification_failed', err));
     setSessionCookie(res, { sub: user.id, accountType: user.account_type, role: user.role });
     res.status(201).json({ user: publicUser(user) });
   }),
