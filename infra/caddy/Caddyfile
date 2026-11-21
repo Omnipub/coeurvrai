@@ -61,7 +61,8 @@
 
 	# Fichiers statiques Next.js : noms versionnés, cache d'un an.
 	@statique path /_next/static/*
-	header @statique Cache-Control "public, max-age=31536000, immutable"
+	# « ? » : seulement si Next.js ne l'a pas déjà fixé (évite un en-tête en double).
+	header @statique ?Cache-Control "public, max-age=31536000, immutable"
 
 	# API et temps réel (WebSocket Socket.io, WSS) : jamais exposés directement.
 	handle /api/* {
