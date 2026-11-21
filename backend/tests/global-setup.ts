@@ -1,6 +1,6 @@
 import { Client } from 'pg';
 
-/** Crée la base de test si elle n'existe pas, puis applique le schéma. */
+/** Crée la base de test si elle n'existe pas, puis applique les migrations versionnées. */
 export default async function setup(): Promise<void> {
   const url = new URL(process.env.DATABASE_URL!);
   const dbName = url.pathname.slice(1);
@@ -13,9 +13,6 @@ export default async function setup(): Promise<void> {
   if (!rowCount) await admin.query(`CREATE DATABASE "${dbName.replace(/"/g, '')}"`);
   await admin.end();
 
-  const { schema } = await import('../src/db/schema');
-  const client = new Client({ connectionString: url.toString() });
-  await client.connect();
-  await client.query(schema);
-  await client.end();
+  const { runMigrations } = await import('../src/db/migrations');
+  await runMigrations(url.toString(), { log: () => undefined });
 }
