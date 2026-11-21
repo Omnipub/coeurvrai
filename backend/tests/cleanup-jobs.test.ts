@@ -161,6 +161,7 @@ describe('runCleanup', () => {
       inactiveAccountsDeleted: 0,
       closedReportsDeleted: 0,
       ipLogsPruned: 0,
+      orphanPhotoFoldersDeleted: 0,
     });
   });
 });

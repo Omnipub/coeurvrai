@@ -1,6 +1,8 @@
 import { pool } from '../utils/db';
 import { IP_RETENTION, PRUNED_IP_LOGS_SQL } from '../services/activity';
 import { deleteOnfidoApplicants } from '../services/onfido';
+import { deleteUserFiles, userPrefix } from '../services/photos';
+import { getStorage } from '../services/storage';
 
 /**
  * Purges RGPD automatiques (voir la politique de confidentialité, § 8) :
@@ -24,6 +26,7 @@ export interface CleanupResult {
   inactiveAccountsDeleted: number;
   closedReportsDeleted: number;
   ipLogsPruned: number;
+  orphanPhotoFoldersDeleted: number;
 }
 
 /**
@@ -49,12 +52,13 @@ export async function purgeInactiveAccounts(): Promise<{ warned: number; deleted
   for (const { email } of warned.rows) await sendInactivityNotice(email);
 
   // Suppression en cascade : profil, photos, likes, matchs, messages, blocages, signalements.
-  const deleted = await pool.query<{ onfido_applicant_id: string | null }>(
+  const deleted = await pool.query<{ id: string; onfido_applicant_id: string | null }>(
     `DELETE FROM users
       WHERE last_activity_at < now() - INTERVAL '${INACTIVITY_LIMIT}'
         AND inactivity_warned_at < now() - INTERVAL '${INACTIVITY_NOTICE}'
-      RETURNING onfido_applicant_id`,
+      RETURNING id, onfido_applicant_id`,
   );
+  await deleteUserFiles(deleted.rows.map((r) => r.id));
   await deleteOnfidoApplicants(deleted.rows.map((r) => r.onfido_applicant_id));
 
   return { warned: warned.rowCount ?? 0, deleted: deleted.rowCount ?? 0 };
@@ -86,6 +90,28 @@ export async function purgeOldIpLogs(): Promise<number> {
 }
 
 /**
+ * Supprime du bucket les dossiers de photos dont le membre n'existe plus
+ * (filet de sécurité si une suppression de fichiers a échoué).
+ */
+export async function purgeOrphanPhotos(): Promise<number> {
+  const storage = getStorage();
+  const folders = (await storage.listFolders('photos/')).filter((f) =>
+    /^[0-9a-f-]{36}$/i.test(f),
+  );
+  if (!folders.length) return 0;
+  const { rows } = await pool.query<{ id: string }>('SELECT id FROM users WHERE id = ANY($1::uuid[])', [folders]);
+  const alive = new Set(rows.map((r) => r.id));
+  let removed = 0;
+  for (const folder of folders) {
+    if (!alive.has(folder)) {
+      await storage.deletePrefix(userPrefix(folder));
+      removed++;
+    }
+  }
+  return removed;
+}
+
+/**
  * Exécute toutes les purges sous verrou consultatif PostgreSQL.
  * Retourne null si un autre processus effectue déjà le nettoyage.
  */
@@ -104,6 +130,7 @@ export async function runCleanup(): Promise<CleanupResult | null> {
         inactiveAccountsDeleted: inactive.deleted,
         closedReportsDeleted: await purgeClosedReports(),
         ipLogsPruned: await purgeOldIpLogs(),
+        orphanPhotoFoldersDeleted: await purgeOrphanPhotos(),
       };
       console.info('[cleanup]', JSON.stringify(result));
       return result;

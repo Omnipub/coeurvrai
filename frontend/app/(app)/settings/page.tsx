@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { ExportDataButton } from '@/components/ExportDataButton';
+import { PhotoManager } from '@/components/PhotoManager';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useAuth } from '@/hooks/useAuth';
 import { api, formatDate } from '@/lib/api';
@@ -56,6 +57,10 @@ export default function SettingsPage() {
           <dt className="text-gray-500">Dernière adresse IP</dt>
           <dd className="font-mono">{account.lastIp ?? '—'}</dd>
         </dl>
+      </Section>
+
+      <Section title="Mes photos">
+        <PhotoManager />
       </Section>
 
       <Section title="Vérification">

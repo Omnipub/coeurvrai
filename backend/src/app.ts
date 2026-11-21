@@ -12,6 +12,7 @@ import accountRouter from './api/account';
 import profileRouter from './api/profile';
 import likeRouter from './api/like';
 import reportRouter from './api/report';
+import photoRouter from './api/photos';
 import verificationRouter from './api/verification';
 import { registerChat } from './socket/chat';
 
@@ -53,6 +54,7 @@ export function createApp() {
   app.use('/api/account', accountRouter);
   app.use('/api/profiles', profileRouter);
   app.use('/api/likes', likeRouter);
+  app.use('/api/photos', photoRouter);
   app.use('/api/verification', verificationRouter);
   app.use('/api', reportRouter);
 

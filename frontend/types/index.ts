@@ -21,7 +21,18 @@ export interface Profile {
   heightCm?: number | null;
   pronouns?: string | null;
   photosMatchesOnly?: boolean;
+  /** Vrai si les photos renvoyées sont les versions floutées. */
+  photosBlurred: boolean;
   verified: boolean;
+}
+
+export interface OwnPhoto {
+  id: string;
+  position: number;
+  width: number;
+  height: number;
+  /** URL signée, valable quelques minutes. */
+  url: string;
 }
 
 export interface MatchSummary {

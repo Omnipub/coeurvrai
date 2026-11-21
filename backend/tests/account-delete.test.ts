@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { api, auth, buildScenario, count, setupTestDb } from './helpers';
+import { api, auth, buildScenario, count, setupTestDb, storage } from './helpers';
 
 setupTestDb();
 
@@ -50,18 +50,12 @@ describe('DELETE /api/account/delete', () => {
     expect(await count('blocks', 'blocker_id = $1 OR blocked_id = $1', hugo.id)).toBe(0);
     expect(await count('reports', 'reporter_id = $1 OR reported_id = $1', hugo.id)).toBe(0);
 
-    // Aucune trace de ses photos ni de son e-mail nulle part.
-    for (const needle of ['hugo-1.jpg', hugo.email]) {
-      const { rows } = await (await import('./helpers')).pool.query(
-        `SELECT
-           (SELECT COUNT(*) FROM users WHERE email = $1 OR ip_logs::text LIKE '%' || $1 || '%')
-         + (SELECT COUNT(*) FROM profiles_homme WHERE array_to_string(photos, ',') LIKE '%' || $1 || '%')
-         + (SELECT COUNT(*) FROM profiles_femme_trans WHERE array_to_string(photos, ',') LIKE '%' || $1 || '%')
-         AS n`,
-        [needle],
-      );
-      expect(Number(rows[0].n)).toBe(0);
-    }
+    // Aucune trace de son e-mail ni de ses photos, ni en base ni dans le stockage.
+    expect(await count('users', 'email = $1', hugo.email)).toBe(0);
+    expect(await count('photos', 'user_id = $1', hugo.id)).toBe(0);
+    expect([...storage.objects.keys()].filter((k) => k.includes(hugo.id))).toEqual([]);
+    // Les fichiers de Léa sont toujours là.
+    expect([...storage.objects.keys()].filter((k) => k.includes(lea.id))).toHaveLength(2);
 
     // Les autres membres sont intacts.
     for (const other of [lea, sara, nina]) {

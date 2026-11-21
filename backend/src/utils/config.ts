@@ -27,6 +27,29 @@ export const config = {
   /** SMTP (ex. smtps://user:pass@smtp.exemple.fr:465). Vide : e-mails journalisés, non envoyés. */
   smtpUrl: process.env.SMTP_URL ?? '',
   mailFrom: process.env.MAIL_FROM ?? 'Cœur Vrai <no-reply@coeurvrai.com>',
+  /**
+   * Stockage objet compatible S3 (OVH Object Storage en production, MinIO en local).
+   * Sans S3_BUCKET_PHOTOS : stockage en mémoire (tests uniquement, interdit en production).
+   */
+  storage: {
+    bucketPhotos: process.env.S3_BUCKET_PHOTOS ?? '',
+    endpoint: process.env.S3_ENDPOINT ?? '',
+    /** Point d'accès vu par les navigateurs, utilisé pour signer les URL (souvent identique). */
+    publicEndpoint: process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || '',
+    region: process.env.S3_REGION ?? 'gra',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
+    forcePathStyle: (process.env.S3_FORCE_PATH_STYLE ?? 'true') === 'true',
+  },
+  photos: {
+    /** Durée de vie des URL signées (5 à 15 minutes). */
+    urlTtlSeconds: Math.min(900, Math.max(300, Number(process.env.PHOTO_URL_TTL_SECONDS ?? 600))),
+    /**
+     * Photos floutées pour les comptes hommes sans abonnement actif.
+     * Désactivé tant que l'abonnement n'existe pas (voir services/photos.ts).
+     */
+    blurForNonSubscribers: process.env.PHOTO_BLUR_FOR_NON_SUBSCRIBERS === 'true',
+  },
   onfido: {
     apiToken: process.env.ONFIDO_API_TOKEN ?? '',
     region: (process.env.ONFIDO_REGION ?? 'EU').toUpperCase() as 'EU' | 'US' | 'CA',
@@ -34,6 +57,10 @@ export const config = {
     webhookToken: process.env.ONFIDO_WEBHOOK_TOKEN ?? '',
   },
 };
+
+if (config.env === 'production' && !config.storage.bucketPhotos) {
+  throw new Error('S3_BUCKET_PHOTOS doit être défini en production');
+}
 
 if (config.env === 'production' && config.jwtSecret === 'change-me') {
   throw new Error('JWT_SECRET doit être défini en production');

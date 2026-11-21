@@ -5,6 +5,8 @@ import { pool } from '../src/utils/db';
 import { connectRedis, redis } from '../src/utils/redis';
 import { outbox } from '../src/services/mailer';
 import { setOnfidoClient } from '../src/services/onfido';
+import { MemoryStorage, setStorage } from '../src/services/storage';
+import sharp from 'sharp';
 
 export const { app, io } = createApp();
 export const api = () => request(app);
@@ -14,18 +16,47 @@ export { pool };
 export function setupTestDb(): void {
   beforeAll(async () => {
     await connectRedis();
+    defaultPhoto ??= await jpegWithGps(800, 600);
   });
   beforeEach(async () => {
     await redis.flushDb();
     await pool.query('TRUNCATE users, reports RESTART IDENTITY CASCADE');
     outbox.length = 0;
     setOnfidoClient(null);
+    storage = new MemoryStorage();
+    setStorage(storage);
   });
   afterAll(async () => {
     io.close();
     await redis.quit();
     await pool.end();
   });
+}
+
+/** Stockage en mémoire du test courant (réinitialisé avant chaque test). */
+export let storage = new MemoryStorage();
+
+/** Génère une vraie image JPEG, avec des métadonnées EXIF dont une position GPS. */
+export async function jpegWithGps(width = 2400, height = 1800): Promise<Buffer> {
+  return sharp({ create: { width, height, channels: 3, background: { r: 200, g: 60, b: 90 } } })
+    .jpeg()
+    .withExif({
+      IFD0: { Make: 'TestPhone', Model: 'Modele-X', Copyright: 'Hugo' },
+      IFD3: {
+        GPSLatitudeRef: 'N',
+        GPSLatitude: '48/1 51/1 2400/100',
+        GPSLongitudeRef: 'E',
+        GPSLongitude: '2/1 21/1 300/100',
+      },
+    })
+    .toBuffer();
+}
+
+/** Image par défaut, générée une fois (beforeAll). */
+let defaultPhoto: Buffer;
+
+export function uploadPhoto(user: TestUser, image?: Buffer, filename = 'photo.jpg') {
+  return api().post('/api/photos').set(auth(user)).attach('photo', image ?? defaultPhoto, filename);
 }
 
 export interface TestUser {
@@ -105,7 +136,8 @@ export async function waitFor(check: () => Promise<boolean>, timeoutMs = 2000): 
  *  - match avec Léa + messages dans les deux sens ;
  *  - like de Hugo vers Sara, like de Nina vers Hugo ;
  *  - Hugo bloque Nina ; Hugo signale Sara ; Léa signale Hugo ;
- *  - Hugo a des photos sur son profil.
+ *  - Hugo a deux photos sur son profil (fichiers dans le stockage).
+ *  - Léa réserve ses photos à ses matchs et en a une.
  */
 export async function buildScenario() {
   const hugo = await signup('homme', 'Hugo');
@@ -116,8 +148,12 @@ export async function buildScenario() {
   await api()
     .put('/api/profiles/me')
     .set(auth(hugo))
-    .send({ bio: 'Bonjour', photos: ['https://cdn.test/hugo-1.jpg', 'https://cdn.test/hugo-2.jpg'] })
+    .send({ bio: 'Bonjour' })
     .expect(200);
+  await uploadPhoto(hugo).expect(201);
+  await uploadPhoto(hugo).expect(201);
+  await api().put('/api/profiles/me').set(auth(lea)).send({ photosMatchesOnly: true }).expect(200);
+  await uploadPhoto(lea).expect(201);
 
   await api().post(`/api/likes/${lea.id}`).set(auth(hugo)).expect(201);
   const match = await api().post(`/api/likes/${hugo.id}`).set(auth(lea)).expect(201);

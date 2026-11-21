@@ -51,6 +51,21 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+/** Envoi d'un fichier (multipart) : le navigateur fixe lui-même le Content-Type. */
+export async function apiUpload<T>(path: string, field: string, file: File): Promise<T> {
+  const token = getToken();
+  const body = new FormData();
+  body.append(field, file);
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    body,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, data.error ?? 'Envoi impossible');
+  return data as T;
+}
+
 /** Télécharge une réponse authentifiée sous forme de fichier (nom issu de Content-Disposition). */
 export async function downloadFile(path: string, fallbackName: string): Promise<void> {
   const token = getToken();

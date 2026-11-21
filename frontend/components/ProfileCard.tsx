@@ -23,10 +23,13 @@ export function ProfileCard({ profile, onLike, onPass }: Props) {
           />
         ) : (
           <div className="flex h-full items-center justify-center p-6 text-center text-sm text-coeur-700">
-            {profile.photosMatchesOnly
-              ? 'Photos visibles après un match'
-              : 'Pas encore de photo'}
+            Pas encore de photo
           </div>
+        )}
+        {photo && profile.photosBlurred && (
+          <p className="absolute inset-x-0 bottom-0 bg-black/60 px-3 py-2 text-center text-sm text-white">
+            Photos floutées jusqu’au match
+          </p>
         )}
       </div>
 
