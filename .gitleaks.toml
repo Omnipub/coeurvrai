@@ -1,0 +1,13 @@
+# Configuration gitleaks : règles par défaut + exceptions documentées.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valeurs factices de la pile locale et des tests (jamais utilisées en production)"
+paths = [
+  '''infra/local/env\.local''',
+  '''infra/local/seaweedfs-s3\.json''',
+]
+regexes = [
+  '''local-[a-z0-9-]*-(password|key|secret)[a-z0-9-]*''',
+]
