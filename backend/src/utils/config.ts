@@ -14,6 +14,13 @@ export const config = {
   env: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 3001),
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+  /** Origines acceptées pour les requêtes avec cookie (CSRF) et le WebSocket du chat. */
+  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean),
+  /** Cookie de session réservé à HTTPS (toujours vrai en production). */
+  cookieSecure: (process.env.COOKIE_SECURE ?? (process.env.NODE_ENV === 'production' ? 'true' : 'false')) === 'true',
   databaseUrl: required('DATABASE_URL'),
   redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
   jwtSecret: required('JWT_SECRET'),
@@ -57,6 +64,10 @@ export const config = {
     webhookToken: process.env.ONFIDO_WEBHOOK_TOKEN ?? '',
   },
 };
+
+if (config.env === 'production' && !config.cookieSecure) {
+  throw new Error('COOKIE_SECURE ne peut pas être désactivé en production');
+}
 
 if (config.env === 'production' && !config.storage.bucketPhotos) {
   throw new Error('S3_BUCKET_PHOTOS doit être défini en production');

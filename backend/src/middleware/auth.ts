@@ -4,6 +4,7 @@ import { HttpError } from '../utils/http';
 import { TokenPayload, verifyToken } from '../utils/jwt';
 import { UserRole } from '../models/types';
 import { trackActivity } from '../services/activity';
+import { sessionToken } from '../utils/session';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -16,17 +17,15 @@ declare global {
   }
 }
 
-/** Exige un JWT valide et un compte actif (non suspendu ni banni). */
+/** Exige une session valide (cookie HttpOnly) et un compte actif (non suspendu ni banni). */
 export async function requireAuth(req: Request, _res: Response, next: NextFunction) {
   try {
-    const header = req.headers.authorization;
-    if (!header?.startsWith('Bearer ')) {
-      throw new HttpError(401, 'Authentification requise');
-    }
+    const token = sessionToken(req);
+    if (!token) throw new HttpError(401, 'Authentification requise');
 
     let payload: TokenPayload;
     try {
-      payload = verifyToken(header.slice('Bearer '.length));
+      payload = verifyToken(token);
     } catch {
       throw new HttpError(401, 'Jeton invalide ou expiré');
     }

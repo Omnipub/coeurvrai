@@ -7,6 +7,7 @@ import { config } from './utils/config';
 import { pool } from './utils/db';
 import { redis } from './utils/redis';
 import { errorHandler, notFound } from './middleware/error';
+import { csrfProtection } from './middleware/csrf';
 import authRouter from './api/auth';
 import accountRouter from './api/account';
 import profileRouter from './api/profile';
@@ -30,7 +31,7 @@ export function createApp() {
   app.get('/robots.txt', (_req, res) => {
     res.type('text/plain').send('User-agent: *\nDisallow: /\n');
   });
-  app.use(cors({ origin: config.corsOrigin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
+  app.use(cors({ origin: config.allowedOrigins, credentials: true, exposedHeaders: ['Content-Disposition'] }));
   app.use(
     express.json({
       limit: '100kb',
@@ -50,6 +51,7 @@ export function createApp() {
     }
   });
 
+  app.use('/api', csrfProtection);
   app.use('/api/auth', authRouter);
   app.use('/api/account', accountRouter);
   app.use('/api/profiles', profileRouter);
@@ -62,7 +64,7 @@ export function createApp() {
   app.use(errorHandler);
 
   const server = http.createServer(app);
-  const io = new Server(server, { cors: { origin: config.corsOrigin, credentials: true } });
+  const io = new Server(server, { cors: { origin: config.allowedOrigins, credentials: true } });
   app.set('io', io);
   registerChat(io);
 

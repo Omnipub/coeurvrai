@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { api, setToken } from '@/lib/api';
+import { api } from '@/lib/api';
 
 export default function DeleteAccountPage() {
   const { user } = useAuth();
@@ -27,7 +27,7 @@ export default function DeleteAccountPage() {
       });
       // Rechargement complet plutôt que logout() : sinon le layout de l'espace
       // membre redirige vers /login avant d'afficher la confirmation.
-      setToken(null);
+      // Le serveur a effacé le cookie de session.
       window.location.replace('/?compte=supprime');
     } catch (err) {
       setError((err as Error).message);

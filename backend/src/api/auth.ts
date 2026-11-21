@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { pool, withTransaction } from '../utils/db';
 import { config } from '../utils/config';
 import { asyncHandler, HttpError } from '../utils/http';
-import { signToken } from '../utils/jwt';
+import { clearSessionCookie, setSessionCookie } from '../utils/session';
 import { ageFromBirthdate } from '../utils/age';
 import { requireAuth } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
@@ -84,8 +84,8 @@ router.post(
     await recordActivity(user.id, req.ip ?? null, { isLogin: true });
     // Un échec d'envoi ne doit pas bloquer l'inscription : le membre pourra renvoyer le lien.
     await sendVerificationEmail(user.id, user.email).catch((err) => console.error('[mail]', err));
-    const token = signToken({ sub: user.id, accountType: user.account_type, role: user.role });
-    res.status(201).json({ token, user: publicUser(user) });
+    setSessionCookie(res, { sub: user.id, accountType: user.account_type, role: user.role });
+    res.status(201).json({ user: publicUser(user) });
   }),
 );
 
@@ -105,8 +105,8 @@ router.post(
     if (user.status !== 'active') throw new HttpError(403, 'Compte suspendu');
 
     await recordActivity(user.id, req.ip ?? null, { isLogin: true });
-    const token = signToken({ sub: user.id, accountType: user.account_type, role: user.role });
-    res.json({ token, user: publicUser(user) });
+    setSessionCookie(res, { sub: user.id, accountType: user.account_type, role: user.role });
+    res.json({ user: publicUser(user) });
   }),
 );
 
@@ -122,6 +122,12 @@ router.get(
     res.json({ user: publicUser(rows[0]) });
   }),
 );
+
+/** POST /api/auth/logout — supprime le cookie de session. */
+router.post('/logout', (_req, res) => {
+  clearSessionCookie(res);
+  res.status(204).end();
+});
 
 /** POST /api/auth/send-verification-email — (r)envoie le lien de vérification. */
 router.post(

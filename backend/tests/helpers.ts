@@ -62,6 +62,7 @@ export function uploadPhoto(user: TestUser, image?: Buffer, filename = 'photo.jp
 
 export interface TestUser {
   id: string;
+  /** En-tête Cookie de session (« cv_session=… »). */
   token: string;
   email: string;
   password: string;
@@ -89,10 +90,20 @@ export async function signup(
       gdprConsent: true,
     })
     .expect(201);
-  return { id: res.body.user.id, token: res.body.token, email, password };
+  return { id: res.body.user.id, token: sessionCookieOf(res.headers['set-cookie']), email, password };
 }
 
-export const auth = (user: TestUser) => ({ Authorization: `Bearer ${user.token}` });
+/** Valeur du cookie de session dans une réponse (le jeton n'est jamais dans le corps). */
+export function sessionCookieOf(setCookie: string | string[] | undefined): string {
+  const list = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
+  const cookie = list.find((c) => c.startsWith('cv_session=') || c.startsWith('__Host-cv_session='));
+  if (!cookie) throw new Error('Cookie de session absent');
+  return cookie.split(';')[0];
+}
+
+/** En-têtes d'un navigateur connecté sur le site : cookie de session + origine du site. */
+export const SITE_ORIGIN = 'http://localhost:3000';
+export const auth = (user: TestUser) => ({ Cookie: user.token, Origin: SITE_ORIGIN });
 
 /** Jeton du dernier lien de vérification envoyé à `email`. */
 export function lastVerificationToken(email: string): string {

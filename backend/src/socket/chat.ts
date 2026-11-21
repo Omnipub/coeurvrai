@@ -6,11 +6,14 @@ import { TokenPayload, verifyToken } from '../utils/jwt';
 import { findActiveMatchForUser, isBlocked, otherUser } from '../db/queries';
 import { socketClientIp, trackActivity } from '../services/activity';
 import { CTX, encrypt } from '../utils/crypto';
+import { sessionTokenFromHeaders } from '../utils/session';
+import { isAllowedOrigin } from '../middleware/csrf';
 
 /**
  * Chat temps réel.
  *
- * Connexion : `io(URL, { auth: { token } })`.
+ * Connexion : `io()` depuis le site ; la session est lue dans le cookie HttpOnly
+ * et l'origine de la connexion est vérifiée (pas de détournement depuis un autre site).
  * Chaque socket rejoint `user:<id>` (notifications) puis `match:<id>` via `chat:join`.
  *
  * Client → serveur :
@@ -45,8 +48,9 @@ async function allowMessage(userId: string): Promise<boolean> {
 export function registerChat(io: Server): void {
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth?.token;
-      if (typeof token !== 'string') return next(new Error('unauthorized'));
+      if (!isAllowedOrigin(socket.handshake.headers.origin)) return next(new Error('forbidden origin'));
+      const token = sessionTokenFromHeaders(socket.handshake.headers);
+      if (!token) return next(new Error('unauthorized'));
       const user = verifyToken(token);
 
       const { rows } = await pool.query('SELECT status FROM users WHERE id = $1', [user.sub]);

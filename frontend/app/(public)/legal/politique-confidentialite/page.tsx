@@ -43,7 +43,7 @@ export default function PrivacyPage() {
           <li><a href="#conservation">Durées de conservation</a></li>
           <li><a href="#securite">Sécurité</a></li>
           <li><a href="#droits">Vos droits</a></li>
-          <li><a href="#cookies">Cookies et stockage local</a></li>
+          <li><a href="#cookies">Cookies</a></li>
           <li><a href="#mineurs">Mineur·es</a></li>
           <li><a href="#modifications">Modifications</a></li>
         </ol>
@@ -415,12 +415,13 @@ export default function PrivacyPage() {
         ).
       </p>
 
-      <h2 id="cookies">12. Cookies et stockage local</h2>
+      <h2 id="cookies">12. Cookies</h2>
       <p>
         {LEGAL.siteName} n’utilise <strong>aucun cookie publicitaire ni traceur tiers</strong>.
-        Nous conservons uniquement dans votre navigateur (stockage local) le jeton de session
-        qui vous maintient connecté·e. Ce stockage est strictement nécessaire au fonctionnement
-        du Service et ne requiert pas de consentement. Il est effacé à la déconnexion.
+        Un seul cookie est déposé : le cookie de session qui vous maintient connecté·e
+        (7 jours au plus). Il est réservé aux connexions sécurisées, inaccessible aux scripts
+        de la page et jamais transmis à un autre site. Strictement nécessaire au fonctionnement
+        du Service, il ne requiert pas de consentement. Il est effacé à la déconnexion.
       </p>
 
       <h2 id="mineurs">13. Mineur·es</h2>

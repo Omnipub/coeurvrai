@@ -5,25 +5,12 @@
  */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
-const TOKEN_KEY = 'coeurvrai_token';
-
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return window.localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function setToken(token: string | null): void {
-  try {
-    if (token) window.localStorage.setItem(TOKEN_KEY, token);
-    else window.localStorage.removeItem(TOKEN_KEY);
-  } catch {
-    /* stockage indisponible (navigation privée) */
-  }
-}
+/**
+ * La session est portée par un cookie HttpOnly posé par l'API : le code du
+ * navigateur ne voit jamais le jeton. Les requêtes vers /api (même domaine)
+ * envoient ce cookie automatiquement (credentials: 'same-origin').
+ */
+const CREDENTIALS: RequestCredentials = 'same-origin';
 
 export class ApiError extends Error {
   constructor(
@@ -35,12 +22,11 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
+    credentials: CREDENTIALS,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },
   });
@@ -53,14 +39,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 /** Envoi d'un fichier (multipart) : le navigateur fixe lui-même le Content-Type. */
 export async function apiUpload<T>(path: string, field: string, file: File): Promise<T> {
-  const token = getToken();
   const body = new FormData();
   body.append(field, file);
-  const res = await fetch(`${API_URL}${path}`, {
-    method: 'POST',
-    body,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await fetch(`${API_URL}${path}`, { method: 'POST', body, credentials: CREDENTIALS });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, data.error ?? 'Envoi impossible');
   return data as T;
@@ -68,10 +49,7 @@ export async function apiUpload<T>(path: string, field: string, file: File): Pro
 
 /** Télécharge une réponse authentifiée sous forme de fichier (nom issu de Content-Disposition). */
 export async function downloadFile(path: string, fallbackName: string): Promise<void> {
-  const token = getToken();
-  const res = await fetch(`${API_URL}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  const res = await fetch(`${API_URL}${path}`, { credentials: CREDENTIALS });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new ApiError(res.status, data.error ?? 'Téléchargement impossible');

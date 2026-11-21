@@ -9,6 +9,7 @@ import { rateLimit } from '../middleware/rateLimit';
 import { TERMS_VERSION, User } from '../models/types';
 import { buildExport, deleteAccount } from '../services/account';
 import { readConnectionData } from '../services/activity';
+import { clearSessionCookie } from '../utils/session';
 
 const router = Router();
 
@@ -105,6 +106,7 @@ router.delete(
     }
 
     await deleteAccount(req.user!.sub, req.app.get('io') as Server | undefined);
+    clearSessionCookie(res);
     res.status(204).end();
   }),
 );
