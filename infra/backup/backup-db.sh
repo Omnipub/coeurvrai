@@ -19,7 +19,8 @@ read -r counts <&"${PSQL[0]}"
 run_or_alert "pg_dump" pg_dump --format=custom --compress=6 --no-owner --no-privileges \
   --snapshot="$snapshot" --file="$work/coeurvrai.dump"
 echo "COMMIT;" >&"${PSQL[1]}"
-exec {PSQL[1]}>&-
+psql_in=${PSQL[1]}
+exec {psql_in}>&-   # ferme l'entrée de psql : la session se termine
 wait "$PSQL_PID" || true
 
 echo "$counts" | jq . > "$work/counts.json"
