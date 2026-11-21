@@ -126,6 +126,8 @@ describe('URL signées S3', () => {
     expect(url.pathname).toBe('/coeurvrai-photos/photos/u/p.webp');
     expect(url.searchParams.get('X-Amz-Expires')).toBe('600');
     expect(url.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/);
+    // Pas de paramètre de somme de contrôle (incompatible avec les S3 hors AWS).
+    expect(url.searchParams.has('x-amz-checksum-mode')).toBe(false);
   });
 });
 

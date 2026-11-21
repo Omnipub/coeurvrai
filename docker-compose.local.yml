@@ -48,7 +48,7 @@ services:
   # --- Stockage S3 de test (SeaweedFS), à la place d'OVH Object Storage
   seaweedfs:
     image: chrislusf/seaweedfs:3.80
-    command: server -dir=/data -volume.max=20 -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    command: server -ip=seaweedfs -ip.bind=0.0.0.0 -dir=/data -volume.max=20 -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
     volumes:
       - s3data:/data
       - ./infra/local/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro

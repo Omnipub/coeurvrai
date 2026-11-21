@@ -42,6 +42,11 @@ export class S3Storage implements ObjectStorage {
     const base = {
       region: opts.region,
       forcePathStyle: opts.forcePathStyle,
+      // Sommes de contrôle uniquement si l'opération les exige : les SDK AWS récents les
+      // ajoutent par défaut (x-amz-checksum-mode dans les URL signées), ce que les stockages
+      // compatibles S3 hors AWS (OVH Object Storage, SeaweedFS…) ne gèrent pas toujours.
+      requestChecksumCalculation: 'WHEN_REQUIRED' as const,
+      responseChecksumValidation: 'WHEN_REQUIRED' as const,
       credentials: { accessKeyId: opts.accessKeyId, secretAccessKey: opts.secretAccessKey },
     };
     this.client = new S3Client({ ...base, ...(opts.endpoint ? { endpoint: opts.endpoint } : {}) });

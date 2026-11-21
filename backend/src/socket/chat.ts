@@ -49,7 +49,11 @@ async function allowMessage(userId: string): Promise<boolean> {
 export function registerChat(io: Server): void {
   io.use(async (socket, next) => {
     try {
-      if (!isAllowedOrigin(socket.handshake.headers.origin)) return next(new Error('forbidden origin'));
+      // Origine présente ET étrangère au site → refus (détournement de WebSocket depuis un
+      // autre site). Une requête de même origine peut ne pas porter d'Origin (premier GET
+      // de Socket.io) ; le cookie SameSite=Strict n'est de toute façon jamais envoyé par un autre site.
+      const origin = socket.handshake.headers.origin;
+      if (origin && !isAllowedOrigin(origin)) return next(new Error('forbidden origin'));
       const token = sessionTokenFromHeaders(socket.handshake.headers);
       if (!token) return next(new Error('unauthorized'));
       const user = verifyToken(token);
