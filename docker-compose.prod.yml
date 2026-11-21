@@ -1,0 +1,280 @@
+# Pile de production Cœur Vrai — un seul VPS (6 vCores, 12 Go RAM), Docker Compose.
+#
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+#
+# Sécurité réseau :
+#   - seul Caddy publie des ports (80, 443) ;
+#   - PostgreSQL et Redis sont sur le réseau « internal » (internal: true) : aucune
+#     route vers Internet, aucun port publié, jamais joignables depuis l'extérieur ;
+#   - chaque service ne reçoit QUE les variables dont il a besoin.
+# Toutes les images sont figées sur une version précise ; journaux Docker limités et tournants.
+
+name: coeurvrai
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-hardening: &hardening
+  restart: unless-stopped
+  logging: *logging
+  security_opt:
+    - no-new-privileges:true
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  PORT: "3001"
+  CORS_ORIGIN: https://${SITE_DOMAIN:?SITE_DOMAIN requis}
+  APP_URL: https://${SITE_DOMAIN}
+  COOKIE_SECURE: "true"
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL requis}
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD requis}@redis:6379
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET requis}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+  BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+  ENCRYPTION_KEYS: ${ENCRYPTION_KEYS:?ENCRYPTION_KEYS requis}
+  LOG_PSEUDONYM_KEY: ${LOG_PSEUDONYM_KEY:?LOG_PSEUDONYM_KEY requis}
+  CLEANUP_CRON: ${CLEANUP_CRON:-0 3 * * *}
+  SMTP_URL: ${SMTP_URL:-}
+  MAIL_FROM: ${MAIL_FROM:-Cœur Vrai <noreply@coeurvrai.com>}
+  S3_BUCKET_PHOTOS: ${S3_BUCKET_PHOTOS:?S3_BUCKET_PHOTOS requis}
+  S3_ENDPOINT: ${S3_ENDPOINT:?S3_ENDPOINT requis}
+  S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-}
+  S3_REGION: ${S3_REGION:-gra}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?S3_ACCESS_KEY_ID requis}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?S3_SECRET_ACCESS_KEY requis}
+  S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+  PHOTO_URL_TTL_SECONDS: ${PHOTO_URL_TTL_SECONDS:-600}
+  PHOTO_BLUR_FOR_NON_SUBSCRIBERS: ${PHOTO_BLUR_FOR_NON_SUBSCRIBERS:-false}
+  ONFIDO_API_TOKEN: ${ONFIDO_API_TOKEN:-}
+  ONFIDO_REGION: ${ONFIDO_REGION:-EU}
+  ONFIDO_WORKFLOW_ID: ${ONFIDO_WORKFLOW_ID:-}
+  ONFIDO_WEBHOOK_TOKEN: ${ONFIDO_WEBHOOK_TOKEN:-}
+
+services:
+  # --- Reverse proxy : HTTPS (Let's Encrypt), HTTP/2-3, WebSocket, redirections, en-têtes
+  caddy:
+    <<: *hardening
+    image: caddy:2.8.4-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      REDIRECT_DOMAINS: ${REDIRECT_DOMAINS:?REDIRECT_DOMAINS requis}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL requis}
+      S3_PUBLIC_ORIGIN: ${S3_PUBLIC_ORIGIN:?S3_PUBLIC_ORIGIN requis}
+      CADDY_GLOBAL_OPTIONS: ${CADDY_GLOBAL_OPTIONS:-}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/caddy-health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks: [web]
+
+  # --- Site Next.js (rendu statique + espace membre)
+  frontend:
+    <<: *hardening
+    image: ${IMAGE_REGISTRY:-ghcr.io/omnipub/coeurvrai}/frontend:${APP_VERSION:?APP_VERSION requis}
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    cap_drop: [ALL]
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+    networks: [web]
+
+  # --- Migrations : jouées avant chaque démarrage du backend, avec l'utilisateur propriétaire
+  migrate:
+    image: ${IMAGE_REGISTRY:-ghcr.io/omnipub/coeurvrai}/backend:${APP_VERSION}
+    command: ["node", "dist/db/migrate.js"]
+    restart: "no"
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop: [ALL]
+    environment:
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?MIGRATION_DATABASE_URL requis}
+      DB_APP_ROLE: ${PG_APP_USER:-coeurvrai_app}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  # --- API Express + Socket.io (utilisateur PostgreSQL applicatif, sans droits d'administration)
+  backend:
+    <<: *hardening
+    image: ${IMAGE_REGISTRY:-ghcr.io/omnipub/coeurvrai}/backend:${APP_VERSION}
+    environment: *backend-env
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    # « web » : joignable par Caddy et accès sortant (Onfido, Brevo, Object Storage) ;
+    # « internal » : accès à PostgreSQL et Redis.
+    networks: [web, internal]
+
+  # --- PostgreSQL 15 : volume nommé, aucun port publié
+  postgres:
+    <<: *hardening
+    image: postgres:15.10-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+      POSTGRES_DB: coeurvrai
+      POSTGRES_INITDB_ARGS: "--auth-local=scram-sha-256 --auth-host=scram-sha-256"
+      PG_OWNER_USER: ${PG_OWNER_USER:-coeurvrai_owner}
+      PG_OWNER_PASSWORD: ${PG_OWNER_PASSWORD:?PG_OWNER_PASSWORD requis}
+      PG_APP_USER: ${PG_APP_USER:-coeurvrai_app}
+      PG_APP_PASSWORD: ${PG_APP_PASSWORD:?PG_APP_PASSWORD requis}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=768MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - max_connections=100
+      - -c
+      - password_encryption=scram-sha-256
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - log_statement=none
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d coeurvrai"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 3g
+    networks: [internal]
+
+  # --- Redis : mot de passe obligatoire, persistance AOF, aucun port publié
+  redis:
+    <<: *hardening
+    image: redis:7.4.1-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command:
+      - sh
+      - -c
+      - >-
+        exec redis-server --requirepass "$$REDIS_PASSWORD" --appendonly yes --appendfsync everysec
+        --maxmemory 384mb --maxmemory-policy noeviction
+        --rename-command FLUSHALL "" --rename-command FLUSHDB "" --rename-command DEBUG "" --rename-command CONFIG ""
+    volumes:
+      - redisdata:/data
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks: [internal]
+
+  # --- Sauvegardes chiffrées (restic) vers le bucket S3 « sauvegardes » + alertes
+  backup:
+    <<: *hardening
+    image: ${IMAGE_REGISTRY:-ghcr.io/omnipub/coeurvrai}/backup:${APP_VERSION}
+    environment:
+      TZ: Europe/Paris
+      PGHOST: postgres
+      PGDATABASE: coeurvrai
+      PGUSER: ${PG_OWNER_USER:-coeurvrai_owner}
+      PGPASSWORD: ${PG_OWNER_PASSWORD}
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:?RESTIC_REPOSITORY requis}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?RESTIC_PASSWORD requis}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:?BACKUP_S3_ACCESS_KEY_ID requis}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:?BACKUP_S3_SECRET_ACCESS_KEY requis}
+      AWS_DEFAULT_REGION: ${S3_REGION:-gra}
+      PHOTOS_BUCKET: ${S3_BUCKET_PHOTOS}
+      PHOTOS_S3_ENDPOINT: ${S3_ENDPOINT}
+      PHOTOS_S3_REGION: ${S3_REGION:-gra}
+      PHOTOS_S3_ACCESS_KEY_ID: ${PHOTOS_BACKUP_ACCESS_KEY_ID:-${S3_ACCESS_KEY_ID}}
+      PHOTOS_S3_SECRET_ACCESS_KEY: ${PHOTOS_BACKUP_SECRET_ACCESS_KEY:-${S3_SECRET_ACCESS_KEY}}
+      SMTP_URL: ${SMTP_URL:-}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-true}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-noreply@coeurvrai.com}
+      HEALTHCHECK_URL: ${HEALTHCHECK_URL:-}
+      DISK_ALERT_THRESHOLD: ${DISK_ALERT_THRESHOLD:-80}
+    volumes:
+      - backup_work:/var/lib/backup
+      - restic_cache:/var/cache/restic
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep crond >/dev/null"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    # « internal » pour lire PostgreSQL ; « egress » pour joindre l'Object Storage et le SMTP.
+    networks: [internal, egress]
+
+networks:
+  web: {}
+  internal:
+    internal: true
+  egress: {}
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
+  pgdata: {}
+  redisdata: {}
+  backup_work: {}
+  restic_cache: {}

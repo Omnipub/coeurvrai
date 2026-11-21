@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import type { Server } from 'socket.io';
 import { pool } from '../utils/db';

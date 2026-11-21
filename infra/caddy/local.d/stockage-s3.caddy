@@ -1,0 +1,5 @@
+# Local uniquement : expose le stockage S3 de test (SeaweedFS) aux navigateurs,
+# pour afficher les photos par URL signées comme en production.
+{$S3_PUBLIC_HOST} {
+	reverse_proxy seaweedfs:8333
+}

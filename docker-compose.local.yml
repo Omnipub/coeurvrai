@@ -1,0 +1,89 @@
+# Variante LOCALE de la pile de production, pour tout tester avant l'achat du serveur.
+#
+#   docker compose --env-file infra/local/env.local \
+#     -f docker-compose.prod.yml -f docker-compose.local.yml up -d --build
+#
+# Différences avec la production (le reste est IDENTIQUE) :
+#   - images construites depuis le code local ;
+#   - certificats émis par l'autorité locale de Caddy (« local_certs »), ports liés à 127.0.0.1 ;
+#   - SeaweedFS remplace OVH Object Storage (même interface S3) ;
+#   - Mailpit reçoit les e-mails (interface : http://127.0.0.1:8025) au lieu de Brevo.
+# Les secrets de infra/local/env.local sont FACTICES et ne servent qu'ici.
+
+services:
+  caddy:
+    ports: !override
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
+    environment:
+      S3_PUBLIC_HOST: ${S3_PUBLIC_HOST}
+    volumes:
+      - ./infra/caddy/local.d:/etc/caddy/local.d:ro
+
+  frontend:
+    image: coeurvrai-local/frontend:${APP_VERSION}
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN}
+
+  migrate:
+    image: coeurvrai-local/backend:${APP_VERSION}
+    build: ./backend
+
+  backend:
+    image: coeurvrai-local/backend:${APP_VERSION}
+    build: ./backend
+    depends_on:
+      s3-init:
+        condition: service_completed_successfully
+
+  backup:
+    image: coeurvrai-local/backup:${APP_VERSION}
+    build: ./infra/backup
+    depends_on:
+      s3-init:
+        condition: service_completed_successfully
+
+  # --- Stockage S3 de test (SeaweedFS), à la place d'OVH Object Storage
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.80
+    command: server -dir=/data -volume.max=20 -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    volumes:
+      - s3data:/data
+      - ./infra/local/seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9333/cluster/status >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "2" }
+    networks: [web, egress]
+
+  # Crée les deux buckets (photos privées, sauvegardes) au démarrage.
+  s3-init:
+    image: chrislusf/seaweedfs:3.80
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 3
+        echo "s3.bucket.create -name ${S3_BUCKET_PHOTOS}" | weed shell -master=seaweedfs:9333
+        echo "s3.bucket.create -name coeurvrai-sauvegardes" | weed shell -master=seaweedfs:9333
+        echo "s3.bucket.list" | weed shell -master=seaweedfs:9333
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    networks: [egress]
+
+  # --- Boîte de réception de test pour tous les e-mails envoyés
+  mailpit:
+    image: axllent/mailpit:v1.21.2
+    ports:
+      - "127.0.0.1:8025:8025"
+    networks: [web, egress]
+
+volumes:
+  s3data: {}

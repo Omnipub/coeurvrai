@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { logger } from '../utils/logger';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { pool, withTransaction } from '../utils/db';
 import { config } from '../utils/config';
