@@ -48,8 +48,10 @@ healthy() {
   # Le site répond-il, à travers Caddy, avec PostgreSQL et Redis joignables ?
   local deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
   while [ "$(date +%s)" -lt "$deadline" ]; do
-    if curl -fsS --max-time 5 --resolve "$domain:443:127.0.0.1" "https://$domain/health" | grep -q '"ok"' \
-       && curl -fsS --max-time 5 -o /dev/null --resolve "$domain:443:127.0.0.1" "https://$domain/"; then
+    # HEALTH_CURL_OPTS : options supplémentaires (ex. « -k » pour le certificat local des tests).
+    # shellcheck disable=SC2086
+    if curl -fsS --max-time 5 ${HEALTH_CURL_OPTS:-} --resolve "$domain:443:127.0.0.1" "https://$domain/health" | grep -q '"ok"' \
+       && curl -fsS --max-time 5 ${HEALTH_CURL_OPTS:-} -o /dev/null --resolve "$domain:443:127.0.0.1" "https://$domain/"; then
       return 0
     fi
     sleep 5

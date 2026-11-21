@@ -17,8 +17,8 @@ export function generateStaticParams() {
   return GUIDES.map((g) => ({ slug: g.slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const guide = getGuide(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const guide = getGuide((await params).slug);
   if (!guide) return {};
   return buildMetadata({
     title: guide.title,
@@ -31,8 +31,8 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   });
 }
 
-export default function GuidePage({ params }: { params: { slug: string } }) {
-  const guide = getGuide(params.slug);
+export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
+  const guide = getGuide((await params).slug);
   if (!guide) notFound();
 
   const others = GUIDES.filter((g) => g.slug !== guide.slug);

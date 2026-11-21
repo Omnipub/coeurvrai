@@ -41,6 +41,9 @@ const nextConfig = {
     ];
   },
   images: {
+    // Sans hôte déclaré, l'API d'optimisation (/_next/image) est désactivée : elle ne sert
+    // pas (photos par URL signées) et réduit la surface d'attaque.
+    unoptimized: imageHosts.length === 0,
     formats: ['image/avif', 'image/webp'],
     remotePatterns: imageHosts.map((hostname) => ({ protocol: 'https', hostname })),
   },

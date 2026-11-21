@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# Image du site Cœur Vrai (Next.js 14, mode « standalone »). Multi-étapes,
+# Image du site Cœur Vrai (Next.js 15, mode « standalone »). Multi-étapes,
 # utilisateur non-root. L'API étant servie sur le même domaine (/api), l'image
 # est identique pour tous les environnements ; seule l'URL canonique est figée au build.
 

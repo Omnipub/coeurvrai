@@ -36,8 +36,9 @@ function Heart({ size }: { size: number }) {
   );
 }
 
-export function GET(_req: Request, { params }: { params: { key: string } }) {
-  if (params.key === 'logo') {
+export async function GET(_req: Request, { params }: { params: Promise<{ key: string }> }) {
+  const { key } = await params;
+  if (key === 'logo') {
     return new ImageResponse(
       (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff1f3' }}>
@@ -48,7 +49,7 @@ export function GET(_req: Request, { params }: { params: { key: string } }) {
     );
   }
 
-  const card = CARDS[params.key];
+  const card = CARDS[key];
   if (!card) return new Response('Not found', { status: 404 });
 
   return new ImageResponse(

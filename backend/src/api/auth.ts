@@ -23,12 +23,8 @@ const signupSchema = z.object({
   displayName: z.string().trim().min(2).max(40),
   // Deux consentements distincts : CGU + charte, et traitement des données
   // sensibles (RGPD art. 9.2.a, consentement explicite et séparé).
-  acceptTerms: z.literal(true, {
-    errorMap: () => ({ message: 'Vous devez accepter les CGU et la charte de la communauté' }),
-  }),
-  gdprConsent: z.literal(true, {
-    errorMap: () => ({ message: 'Votre consentement au traitement des données sensibles est requis' }),
-  }),
+  acceptTerms: z.literal(true, { error: 'Vous devez accepter les CGU et la charte de la communauté' }),
+  gdprConsent: z.literal(true, { error: 'Votre consentement au traitement des données sensibles est requis' }),
 });
 
 const loginSchema = z.object({

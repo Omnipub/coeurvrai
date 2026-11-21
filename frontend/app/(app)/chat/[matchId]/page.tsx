@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, use, useEffect, useRef, useState } from 'react';
 import { ReportButton } from '@/components/ReportButton';
 import { VerifiedBadge } from '@/components/VerifiedBadge';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,8 +9,8 @@ import { useChat } from '@/hooks/useChat';
 import { api } from '@/lib/api';
 import type { MatchSummary } from '@/types';
 
-export default function ChatPage({ params }: { params: { matchId: string } }) {
-  const { matchId } = params;
+export default function ChatPage({ params }: { params: Promise<{ matchId: string }> }) {
+  const { matchId } = use(params);
   const { user } = useAuth();
   const router = useRouter();
   const { messages, send, typing, error, closed, otherTyping } = useChat(matchId);

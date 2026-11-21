@@ -79,9 +79,7 @@ router.get(
 
 const tokenSchema = z.object({
   // Consentement explicite au traitement de données biométriques (RGPD art. 9.2.a).
-  consent: z.literal(true, {
-    errorMap: () => ({ message: 'Votre consentement explicite est requis pour la vérification par selfie' }),
-  }),
+  consent: z.literal(true, { error: 'Votre consentement explicite est requis pour la vérification par selfie' }),
 });
 
 /**

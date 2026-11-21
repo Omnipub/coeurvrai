@@ -24,7 +24,7 @@ Ce dépôt contient le MVP : API temps réel + application web.
 | E-mails | nodemailer (SMTP Brevo) |
 | Vérification d'identité | Onfido Studio (`@onfido/api` côté serveur, `onfido-sdk-ui` côté web) |
 | Paiements | Stripe API (client prêt, abonnements à venir) |
-| Frontend | Next.js 14 (App Router, mode standalone) + React 18 + Tailwind CSS 3 |
+| Frontend | Next.js 15 (App Router, mode standalone) + React 19 + Tailwind CSS 3 |
 | Production | Docker Compose sur un VPS OVHcloud (France), Caddy, restic, GitHub Actions |
 
 ---
