@@ -228,7 +228,9 @@ services:
     image: ${IMAGE_REGISTRY:-ghcr.io/omnipub/coeurvrai}/backup:${APP_VERSION}
     environment:
       TZ: Europe/Paris
-      PGHOST: postgres
+      # Phase 2 (PostgreSQL managé OVH) : renseigner PG_BACKUP_HOST et PG_BACKUP_SSLMODE=verify-full.
+      PGHOST: ${PG_BACKUP_HOST:-postgres}
+      PGSSLMODE: ${PG_BACKUP_SSLMODE:-prefer}
       PGDATABASE: coeurvrai
       PGUSER: ${PG_OWNER_USER:-coeurvrai_owner}
       PGPASSWORD: ${PG_OWNER_PASSWORD}
