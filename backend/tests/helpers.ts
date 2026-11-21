@@ -7,6 +7,7 @@ import { outbox } from '../src/services/mailer';
 import { setOnfidoClient } from '../src/services/onfido';
 import { MemoryStorage, setStorage } from '../src/services/storage';
 import sharp from 'sharp';
+import { CTX, encrypt } from '../src/utils/crypto';
 
 export const { app, io } = createApp();
 export const api = () => request(app);
@@ -104,11 +105,11 @@ export function lastVerificationToken(email: string): string {
 
 export { outbox };
 
-/** Insère un message directement (le chat passe normalement par Socket.io). */
+/** Insère un message directement, chiffré comme le fait le chat (Socket.io). */
 export async function insertMessage(matchId: string, senderId: string, content: string): Promise<string> {
   const { rows } = await pool.query<{ id: string }>(
     'INSERT INTO messages (match_id, sender_id, content) VALUES ($1, $2, $3) RETURNING id',
-    [matchId, senderId, content],
+    [matchId, senderId, encrypt(content, CTX.messageContent)],
   );
   return rows[0].id;
 }

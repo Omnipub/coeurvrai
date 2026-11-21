@@ -9,6 +9,7 @@ import { findActiveMatchForUser, isBlocked } from '../db/queries';
 import { compatibleAccountType } from '../models/types';
 import { PROFILE_TABLE } from '../services/profiles';
 import { canSeeClearPhotos, signPhotos } from '../services/photos';
+import { CTX, decrypt } from '../utils/crypto';
 
 const router = Router();
 router.use(requireAuth);
@@ -129,7 +130,7 @@ router.get(
           verified: r.verified_badge,
         },
         lastMessage: r.last_message
-          ? { content: r.last_message, createdAt: r.last_message_at }
+          ? { content: decrypt(r.last_message, CTX.messageContent), createdAt: r.last_message_at }
           : null,
       })),
     });
@@ -174,7 +175,7 @@ router.get(
       messages: rows.reverse().map((m) => ({
         id: m.id,
         senderId: m.sender_id,
-        content: m.content,
+        content: decrypt(m.content, CTX.messageContent),
         createdAt: m.created_at,
         readAt: m.read_at,
       })),

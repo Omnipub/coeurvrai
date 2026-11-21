@@ -2,6 +2,7 @@ import { pool, withTransaction } from '../utils/db';
 import { redis } from '../utils/redis';
 import { HttpError } from '../utils/http';
 import { Report, ReportReason } from '../models/types';
+import { CTX, decrypt, encryptNullable } from '../utils/crypto';
 
 /**
  * File de modération.
@@ -54,7 +55,7 @@ export async function createReport(input: CreateReportInput): Promise<{ id: stri
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO reports (reporter_id, reported_id, message_id, reason, details)
        VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [reporterId, reportedId, messageId, reason, details],
+      [reporterId, reportedId, messageId, reason, encryptNullable(details, CTX.reportDetails)],
     );
     await client.query(
       'INSERT INTO blocks (blocker_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
@@ -79,6 +80,16 @@ async function distinctReporters24h(reportedId: string): Promise<number> {
 }
 
 /** Tente d'attribuer un signalement `pending` au modérateur. */
+/** Déchiffre les champs sensibles d'un signalement avant de le renvoyer. */
+function readReport(report: Report | undefined): Report | null {
+  if (!report) return null;
+  return {
+    ...report,
+    details: decrypt(report.details, CTX.reportDetails),
+    resolution_note: decrypt(report.resolution_note, CTX.reportResolution),
+  };
+}
+
 async function claim(reportId: string, moderatorId: string): Promise<Report | null> {
   const { rows } = await pool.query<Report>(
     `UPDATE reports SET status = 'reviewing', moderator_id = $2
@@ -86,7 +97,7 @@ async function claim(reportId: string, moderatorId: string): Promise<Report | nu
       RETURNING *`,
     [reportId, moderatorId],
   );
-  return rows[0] ?? null;
+  return readReport(rows[0]);
 }
 
 /**
@@ -111,7 +122,7 @@ export async function claimNextReport(moderatorId: string): Promise<Report | nul
       RETURNING *`,
     [moderatorId],
   );
-  return rows[0] ?? null;
+  return readReport(rows[0]);
 }
 
 /**
@@ -130,7 +141,7 @@ export async function resolveReport(
           SET status = $3, moderator_id = $2, resolution_note = $4, closed_at = now()
         WHERE id = $1 AND status IN ('pending', 'reviewing')
         RETURNING *`,
-      [reportId, moderatorId, action === 'dismiss' ? 'dismissed' : 'resolved', note],
+      [reportId, moderatorId, action === 'dismiss' ? 'dismissed' : 'resolved', encryptNullable(note, CTX.reportResolution)],
     );
     const report = rows[0];
     if (!report) throw new HttpError(404, 'Signalement introuvable ou déjà traité');
@@ -141,7 +152,7 @@ export async function resolveReport(
         action === 'ban' ? 'banned' : 'suspended',
       ]);
     }
-    return report;
+    return readReport(report)!;
   });
 }
 

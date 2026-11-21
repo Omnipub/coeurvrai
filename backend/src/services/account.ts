@@ -4,6 +4,8 @@ import { AccountType, TERMS_VERSION, User } from '../models/types';
 import { PROFILE_TABLE } from './profiles';
 import { deleteOnfidoApplicants } from './onfido';
 import { deleteUserFiles, listOwnPhotos } from './photos';
+import { readConnectionData } from './activity';
+import { CTX, decrypt } from '../utils/crypto';
 import { getStorage } from './storage';
 import { config } from '../utils/config';
 
@@ -128,8 +130,7 @@ export async function buildExport(userId: string): Promise<AccountExport> {
     },
     connectionData: {
       lastActivityAt: user.last_activity_at,
-      lastIp: user.last_ip,
-      ipLogs: user.ip_logs,
+      ...(({ lastIp, ipLogs }) => ({ lastIp, ipLogs: [...ipLogs].reverse() }))(readConnectionData(user)),
     },
     profile: profile[0] ?? null,
     photos: await Promise.all(
@@ -144,9 +145,9 @@ export async function buildExport(userId: string): Promise<AccountExport> {
     likesGiven,
     likesReceived,
     matches,
-    messagesSent,
+    messagesSent: messagesSent.map((m) => ({ ...m, content: decrypt(m.content, CTX.messageContent) })),
     blocks,
-    reportsFiled,
+    reportsFiled: reportsFiled.map((r) => ({ ...r, details: decrypt(r.details, CTX.reportDetails) })),
     reportsReceived,
     notes: [
       'Le mot de passe n’est pas exporté : il n’est stocké que sous forme de hachage irréversible.',

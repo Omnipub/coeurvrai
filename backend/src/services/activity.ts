@@ -1,5 +1,7 @@
 import type { IncomingHttpHeaders } from 'http';
 import { pool } from '../utils/db';
+import { blindIndex, CTX, decrypt, encrypt } from '../utils/crypto';
+import type { IpLogEntry } from '../models/types';
 
 /** Durée de conservation des données de connexion (politique de confidentialité, § 8). */
 export const IP_RETENTION = '1 year';
@@ -31,13 +33,17 @@ export async function recordActivity(
   ip: string | null,
   { isLogin = false }: { isLogin?: boolean } = {},
 ): Promise<void> {
+  // L'IP est stockée chiffrée ; son empreinte HMAC sert à détecter un changement d'IP.
+  const ipHmac = ip ? blindIndex(ip, CTX.ip) : null;
+  const ipEnc = ip ? encrypt(ip, CTX.ip) : null;
   await pool.query(
     `UPDATE users
         SET last_activity_at = now(),
             inactivity_warned_at = NULL,
             last_ip = COALESCE($2, last_ip),
+            last_ip_hmac = COALESCE($4, last_ip_hmac),
             ip_logs = CASE
-              WHEN $2::text IS NOT NULL AND ($3 OR last_ip IS DISTINCT FROM $2)
+              WHEN $4::text IS NOT NULL AND ($3 OR last_ip_hmac IS DISTINCT FROM $4)
                 THEN ${PRUNED_IP_LOGS_SQL}
                      || jsonb_build_array(jsonb_build_object('ip', $2::text, 'date', now()))
               ELSE ip_logs
@@ -45,9 +51,19 @@ export async function recordActivity(
       WHERE id = $1
         AND ($3
              OR last_activity_at < now() - INTERVAL '${ACTIVITY_THROTTLE}'
-             OR ($2::text IS NOT NULL AND last_ip IS DISTINCT FROM $2))`,
-    [userId, ip, isLogin],
+             OR ($4::text IS NOT NULL AND last_ip_hmac IS DISTINCT FROM $4))`,
+    [userId, ipEnc, isLogin, ipHmac],
   );
+}
+
+/** Déchiffre la dernière IP et l'historique (plus récent d'abord). */
+export function readConnectionData(user: { last_ip: string | null; ip_logs: IpLogEntry[] }) {
+  return {
+    lastIp: decrypt(user.last_ip, CTX.ip),
+    ipLogs: [...user.ip_logs]
+      .map((e) => ({ ip: decrypt(e.ip, CTX.ip), date: e.date }))
+      .sort((a, b) => b.date.localeCompare(a.date)),
+  };
 }
 
 /** Version « fire-and-forget » : une erreur de journalisation ne bloque jamais la requête. */

@@ -5,6 +5,7 @@ import { redis } from '../utils/redis';
 import { TokenPayload, verifyToken } from '../utils/jwt';
 import { findActiveMatchForUser, isBlocked, otherUser } from '../db/queries';
 import { socketClientIp, trackActivity } from '../services/activity';
+import { CTX, encrypt } from '../utils/crypto';
 
 /**
  * Chat temps réel.
@@ -103,13 +104,13 @@ export function registerChat(io: Server): void {
         const { rows } = await pool.query(
           `INSERT INTO messages (match_id, sender_id, content) VALUES ($1, $2, $3)
            RETURNING id, match_id, sender_id, content, created_at`,
-          [matchId, user.sub, content],
+          [matchId, user.sub, encrypt(content, CTX.messageContent)],
         );
         const message = {
           id: rows[0].id,
           matchId: rows[0].match_id,
           senderId: rows[0].sender_id,
-          content: rows[0].content,
+          content, // texte en clair, jamais relu depuis la base
           createdAt: rows[0].created_at,
         };
 
