@@ -14,7 +14,7 @@ export function GET() {
 
 > ${SITE_DESCRIPTION} Réservé aux personnes majeures (18 ans et plus). Inscription et fonctionnalités essentielles gratuites.
 
-${BRAND} (coeur-vrai.com) met en relation des hommes et des femmes trans qui cherchent une relation sincère : amitié, rencontre ou histoire d'amour. Les hommes ne voient que des profils de femmes trans et inversement.
+${BRAND} (coeurvrai.com) met en relation des hommes et des femmes trans qui cherchent une relation sincère : amitié, rencontre ou histoire d'amour. Les hommes ne voient que des profils de femmes trans et inversement.
 
 Positionnement :
 - Sécurité : modération humaine, signalement qui bloque immédiatement la personne signalée, tolérance zéro contre la transphobie, l'outing et la prostitution.

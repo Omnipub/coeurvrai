@@ -22,7 +22,7 @@ export function useChat(matchId: string) {
       .then(({ messages }) => setMessages(messages))
       .catch((e: Error) => setError(e.message));
 
-    const socket = io(API_URL, { auth: { token: getToken() } });
+    const socket = io(API_URL || undefined, { auth: { token: getToken() } });
     socketRef.current = socket;
 
     socket.on('connect', () => {

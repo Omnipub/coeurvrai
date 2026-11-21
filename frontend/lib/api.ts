@@ -1,4 +1,9 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+/**
+ * L'API est servie sur le même domaine que le site (/api, /socket.io) :
+ * par Caddy en production, par les réécritures de next.config.mjs en développement.
+ * Une même image frontend fonctionne donc partout. Laisser vide sauf cas particulier.
+ */
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 const TOKEN_KEY = 'coeurvrai_token';
 

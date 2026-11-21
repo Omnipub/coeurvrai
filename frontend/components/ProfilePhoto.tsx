@@ -1,7 +1,7 @@
 import Image from 'next/image';
 
 /** Hôtes dont les images sont optimisées par next/image (AVIF/WebP, tailles responsives). */
-const OPTIMIZED_HOSTS = (process.env.NEXT_PUBLIC_IMAGE_HOSTS ?? 'cdn.coeur-vrai.com')
+const OPTIMIZED_HOSTS = (process.env.NEXT_PUBLIC_IMAGE_HOSTS ?? '')
   .split(',')
   .map((h) => h.trim())
   .filter(Boolean);

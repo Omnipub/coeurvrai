@@ -3,13 +3,13 @@
 /** Nom de marque — à utiliser partout à l'identique (textes, metadata, JSON-LD). */
 export const BRAND = 'Cœur Vrai';
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://coeur-vrai.com').replace(/\/$/, '');
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://coeurvrai.com').replace(/\/$/, '');
 
 export const SITE_DESCRIPTION =
   'Cœur Vrai est un site de rencontre sérieux et bienveillant entre hommes et femmes trans, ' +
   'gratuit, discret et modéré par des humains.';
 
-export const CONTACT_EMAIL = 'contact@coeur-vrai.com';
+export const CONTACT_EMAIL = 'contact@coeurvrai.com';
 
 /**
  * Variantes régionales du français. Le contenu est aujourd'hui identique :

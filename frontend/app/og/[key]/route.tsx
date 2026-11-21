@@ -73,7 +73,7 @@ export function GET(_req: Request, { params }: { params: { key: string } }) {
           <div style={{ fontSize: card.title.length > 50 ? 56 : 68, fontWeight: 700, lineHeight: 1.1 }}>{card.title}</div>
           <div style={{ fontSize: 28, color: '#4b5563', lineHeight: 1.35 }}>{card.subtitle}</div>
         </div>
-        <div style={{ fontSize: 24, color: '#6b7280' }}>coeur-vrai.com · Rencontres entre hommes et femmes trans</div>
+        <div style={{ fontSize: 24, color: '#6b7280' }}>coeurvrai.com · Rencontres entre hommes et femmes trans</div>
       </div>
     ),
     { width: 1200, height: 630 },

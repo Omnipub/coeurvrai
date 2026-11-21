@@ -1,5 +1,5 @@
 /**
- * Schéma PostgreSQL 15 de coeur-vrai.com.
+ * Schéma PostgreSQL 15 de coeurvrai.com.
  *
  * Idempotent : peut être rejoué sans erreur (`npm run db:migrate`).
  * Tables : users, profiles_homme, profiles_femme_trans, likes, matches,

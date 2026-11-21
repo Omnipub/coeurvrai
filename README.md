@@ -1,4 +1,4 @@
-# Cœur Vrai (coeur-vrai.com)
+# Cœur Vrai (coeurvrai.com)
 
 Site de rencontre bienveillant entre **hommes cis** et **femmes trans**.
 Ce dépôt contient le MVP : API temps réel + application web.
