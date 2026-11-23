@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { PRIVATE_PATHS, SITE_URL, absoluteUrl } from '@/lib/site';
+import { NOINDEX_EVERYTHING, PRIVATE_PATHS, SITE_URL, absoluteUrl } from '@/lib/site';
 
 /**
  * robots.txt : pages privées exclues pour tous les robots (moteurs et IA).
@@ -7,6 +7,8 @@ import { PRIVATE_PATHS, SITE_URL, absoluteUrl } from '@/lib/site';
  * `noindex, nofollow` (meta robots + en-tête X-Robots-Tag).
  */
 export default function robots(): MetadataRoute.Robots {
+  // Site de test : tout est interdit aux robots.
+  if (NOINDEX_EVERYTHING) return { rules: [{ userAgent: '*', disallow: '/' }] };
   return {
     rules: [{ userAgent: '*', allow: '/', disallow: PRIVATE_PATHS.map((p) => `${p}`) }],
     sitemap: absoluteUrl('/sitemap.xml'),

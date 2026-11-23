@@ -22,7 +22,7 @@ import { registerChat } from './socket/chat';
 export function createApp() {
   const app = express();
 
-  app.set('trust proxy', 1);
+  app.set('trust proxy', config.trustProxy);
   app.use(helmet());
   // L'API ne doit jamais être indexée (profils, messages : risque d'outing).
   app.use((_req, res, next) => {
@@ -66,7 +66,12 @@ export function createApp() {
   app.use(errorHandler);
 
   const server = http.createServer(app);
-  const io = new Server(server, { cors: { origin: config.allowedOrigins, credentials: true } });
+  // Chemin « /socket.io » sans barre finale : compatible avec les réécritures de Next.js
+  // (qui suppriment la barre finale) comme avec Caddy.
+  const io = new Server(server, {
+    addTrailingSlash: false,
+    cors: { origin: config.allowedOrigins, credentials: true },
+  });
   app.set('io', io);
   registerChat(io);
 

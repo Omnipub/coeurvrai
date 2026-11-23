@@ -5,10 +5,28 @@ import { asyncHandler, HttpError } from '../utils/http';
 import { requireAuth } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
 import { config } from '../utils/config';
-import { getStorage } from '../services/storage';
+import { getStorage, MemoryStorage } from '../services/storage';
 import { addPhoto, deletePhoto, listOwnPhotos, MAX_UPLOAD_BYTES, reorderPhotos } from '../services/photos';
 
 const router = Router();
+
+/**
+ * GET /api/photos/fichier/<clé>?e=…&s=… — uniquement avec le stockage en mémoire
+ * (tests, site de test en ligne). URL signée et limitée dans le temps, comme sur S3.
+ */
+router.get('/fichier/*', (req, res) => {
+  const storage = getStorage();
+  if (!(storage instanceof MemoryStorage)) return res.status(404).end();
+  const file = storage.read(
+    (req.params as Record<string, string>)[0],
+    Number(req.query.e),
+    String(req.query.s ?? ''),
+  );
+  if (!file) return res.status(403).json({ error: 'Lien expiré ou invalide' });
+  res.setHeader('Cache-Control', 'private, max-age=600');
+  res.type(file.contentType).send(file.body);
+});
+
 router.use(requireAuth);
 
 /** Fichier gardé en mémoire (jamais écrit sur le disque du serveur), 1 fichier, 10 Mo max. */

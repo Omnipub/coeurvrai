@@ -22,7 +22,7 @@ export function useChat(matchId: string) {
       .then(({ messages }) => setMessages(messages))
       .catch((e: Error) => setError(e.message));
 
-    const socket = io(API_URL || undefined, { withCredentials: true }); // session : cookie HttpOnly
+    const socket = io(API_URL || undefined, { withCredentials: true, addTrailingSlash: false }); // session : cookie HttpOnly
     socketRef.current = socket;
 
     socket.on('connect', () => {

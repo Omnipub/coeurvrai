@@ -6,6 +6,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import crypto from 'crypto';
 import { config } from '../utils/config';
 
 /**
@@ -116,16 +117,36 @@ export class S3Storage implements ObjectStorage {
   }
 }
 
-/** Stockage en mémoire, pour les tests (refusé en production par config.ts). */
+/**
+ * Stockage en mémoire : tests, et site de test en ligne (DEPLOY_ENV=staging), refusé en
+ * production. Les fichiers sont servis par l'API (/api/photos/fichier/…) avec une URL
+ * signée et limitée dans le temps, comme une URL S3. Tout est perdu au redémarrage.
+ */
 export class MemoryStorage implements ObjectStorage {
   readonly objects = new Map<string, { body: Buffer; contentType: string }>();
+  /** Clé de signature propre au processus (les fichiers ne survivent pas à un redémarrage). */
+  private readonly signingKey = crypto.randomBytes(32);
+
+  private sign(key: string, expires: number): string {
+    return crypto.createHmac('sha256', this.signingKey).update(`${key}\n${expires}`).digest('base64url');
+  }
+
+  /** Renvoie le fichier si la signature est valide et non expirée, sinon null. */
+  read(key: string, expires: number, signature: string): { body: Buffer; contentType: string } | null {
+    if (!Number.isFinite(expires) || expires < Math.floor(Date.now() / 1000)) return null;
+    const expected = Buffer.from(this.sign(key, expires));
+    const given = Buffer.from(signature);
+    if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) return null;
+    return this.objects.get(key) ?? null;
+  }
 
   async put(key: string, body: Buffer, contentType: string) {
     this.objects.set(key, { body, contentType });
   }
 
   async signedUrl(key: string, ttlSeconds: number) {
-    return `memory://photos/${key}?expires=${Math.floor(Date.now() / 1000) + ttlSeconds}`;
+    const expires = Math.floor(Date.now() / 1000) + ttlSeconds;
+    return `/api/photos/fichier/${key}?e=${expires}&s=${this.sign(key, expires)}`;
   }
 
   async deleteKeys(keys: string[]) {

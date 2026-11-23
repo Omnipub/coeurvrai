@@ -10,6 +10,12 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_SITE_URL=https://coeurvrai.com
 ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+# Site de test uniquement (Render) : adresse de l'API et interdiction d'indexation,
+# figées au build. Inutiles en production (Caddy route /api ; site indexable).
+ARG BACKEND_URL=http://localhost:3001
+ENV BACKEND_URL=${BACKEND_URL}
+ARG NEXT_PUBLIC_NOINDEX=false
+ENV NEXT_PUBLIC_NOINDEX=${NEXT_PUBLIC_NOINDEX}
 COPY package.json package-lock.json ./
 # Certificat d'autorité supplémentaire FACULTATIF (réseau d'entreprise avec proxy TLS).
 RUN --mount=type=secret,id=extra_ca,required=false \

@@ -24,7 +24,9 @@ interface KeyRing {
 export function parseKeyRing(spec: string): KeyRing {
   const keys = new Map<string, Buffer>();
   let activeId = '';
-  for (const part of spec.split(',').map((p) => p.trim()).filter(Boolean)) {
+  for (const raw of spec.split(',').map((p) => p.trim()).filter(Boolean)) {
+    // Clé seule, sans identifiant (ex. valeur générée par Render) : identifiant « k0 ».
+    const part = raw.includes(':') ? raw : `k0:${raw}`;
     const idx = part.indexOf(':');
     const id = part.slice(0, idx);
     const key = Buffer.from(part.slice(idx + 1), 'base64');

@@ -25,7 +25,7 @@ export async function sendMail(message: MailMessage): Promise<void> {
   if (!config.smtpUrl) {
     outbox.push(message);
     // Affichage en clair réservé au développement local (jamais en production).
-    if (config.env === 'development') {
+    if (config.env === 'development' || config.isStaging) {
       console.info(`[mail] (non envoyé, SMTP_URL vide) à ${message.to} — ${message.subject}\n${message.text}`);
     } else if (config.env === 'production') {
       logger.warn('mail.not_sent', { reason: 'SMTP_URL vide' });

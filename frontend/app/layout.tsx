@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { Footer } from '@/components/Footer';
 import { AuthProvider } from '@/hooks/useAuth';
-import { BRAND, SITE_DESCRIPTION, SITE_URL } from '@/lib/site';
+import { BRAND, NOINDEX_EVERYTHING, SITE_DESCRIPTION, SITE_URL } from '@/lib/site';
 import './globals.css';
 
 /** Police auto-hébergée (aucune requête vers un service tiers, pas de rendu bloquant). */
@@ -43,6 +43,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Aller au contenu
         </a>
+        {NOINDEX_EVERYTHING && (
+          <p role="note" className="bg-amber-200 px-4 py-2 text-center text-sm font-medium text-amber-950">
+            Site de test — données fictives uniquement. N’y saisissez aucune information réelle.
+          </p>
+        )}
         <AuthProvider>
           <div className="flex flex-1 flex-col">{children}</div>
           <Footer />

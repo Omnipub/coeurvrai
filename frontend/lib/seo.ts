@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { BRAND, HREFLANG_BASES, SITE_URL } from './site';
+import { BRAND, HREFLANG_BASES, NOINDEX_EVERYTHING, SITE_URL } from './site';
 import type { PublicPage } from './content/pages';
 
 export const TITLE_SUFFIX = ` | ${BRAND}`;
@@ -46,11 +46,13 @@ export function buildMetadata(input: SeoInput): Metadata {
     title: input.absoluteTitle ? { absolute: input.absoluteTitle } : input.title,
     description: input.description,
     alternates: { canonical: input.path, languages: hreflangAlternates(input.path) },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
-    },
+    robots: NOINDEX_EVERYTHING
+      ? { index: false, follow: false }
+      : {
+          index: true,
+          follow: true,
+          googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+        },
     openGraph: {
       type: input.type ?? 'website',
       locale: 'fr_FR',

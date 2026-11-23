@@ -10,12 +10,25 @@ function required(name: string): string {
   return value;
 }
 
+/**
+ * Environnement de TEST en ligne (Render, données fictives uniquement) : DEPLOY_ENV=staging.
+ * Autorise le stockage des photos en mémoire et l'affichage des e-mails dans les journaux.
+ * Jamais en production.
+ */
+const isStaging = process.env.DEPLOY_ENV === 'staging';
+/** Nom d'hôte public fourni par l'hébergeur (ex. Render) : sert d'origine par défaut. */
+const publicOrigin = process.env.PUBLIC_HOST ? `https://${process.env.PUBLIC_HOST}` : undefined;
+const defaultOrigin = process.env.CORS_ORIGIN ?? publicOrigin ?? 'http://localhost:3000';
+
 export const config = {
+  isStaging,
+  /** Nombre de relais (reverse proxies) devant l'API : 1 derrière Caddy. */
+  trustProxy: Number(process.env.TRUST_PROXY_HOPS ?? 1),
   env: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 3001),
-  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+  corsOrigin: defaultOrigin,
   /** Origines acceptées pour les requêtes avec cookie (CSRF) et le WebSocket du chat. */
-  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? defaultOrigin)
     .split(',')
     .map((o) => o.trim().replace(/\/$/, ''))
     .filter(Boolean),
@@ -30,7 +43,7 @@ export const config = {
   /** Expression cron des purges RGPD ; vide pour désactiver (ex. instances secondaires). */
   cleanupCron: process.env.CLEANUP_CRON ?? '0 3 * * *',
   /** URL publique du frontend, utilisée dans les liens envoyés par e-mail. */
-  appUrl: (process.env.APP_URL ?? process.env.CORS_ORIGIN ?? 'http://localhost:3000').replace(/\/$/, ''),
+  appUrl: (process.env.APP_URL ?? defaultOrigin).replace(/\/$/, ''),
   /** SMTP (ex. smtps://user:pass@smtp.exemple.fr:465). Vide : e-mails journalisés, non envoyés. */
   smtpUrl: process.env.SMTP_URL ?? '',
   mailFrom: process.env.MAIL_FROM ?? 'Cœur Vrai <no-reply@coeurvrai.com>',
@@ -69,7 +82,7 @@ if (config.env === 'production' && !config.cookieSecure) {
   throw new Error('COOKIE_SECURE ne peut pas être désactivé en production');
 }
 
-if (config.env === 'production' && !config.storage.bucketPhotos) {
+if (config.env === 'production' && !config.storage.bucketPhotos && !config.isStaging) {
   throw new Error('S3_BUCKET_PHOTOS doit être défini en production');
 }
 

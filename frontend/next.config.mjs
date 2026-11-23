@@ -30,14 +30,16 @@ const nextConfig = {
   // Image Docker minimale (serveur Node autonome, sans node_modules complet).
   output: 'standalone',
   /**
-   * Développement sans Caddy : /api et /socket.io sont relayés vers le backend.
-   * En production, Caddy les route avant d'atteindre Next.js.
+   * Sans Caddy (développement, site de test Render) : /api et /socket.io sont relayés
+   * vers le backend. En production, Caddy les route avant d'atteindre Next.js.
    */
   async rewrites() {
-    const backend = process.env.BACKEND_URL ?? 'http://localhost:3001';
+    // Sur Render, BACKEND_URL peut être un simple nom d'hôte (« xxx.onrender.com ») : https:// ajouté.
+    const raw = process.env.BACKEND_URL ?? 'http://localhost:3001';
+    const backend = /^https?:\/\//.test(raw) ? raw.replace(/\/$/, '') : `https://${raw}`;
     return [
       { source: '/api/:path*', destination: `${backend}/api/:path*` },
-      { source: '/socket.io/:path*', destination: `${backend}/socket.io/:path*` },
+      { source: '/socket.io', destination: `${backend}/socket.io` },
     ];
   },
   images: {

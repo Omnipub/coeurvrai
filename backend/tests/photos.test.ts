@@ -142,3 +142,19 @@ describe('Nettoyage des fichiers orphelins', () => {
     expect([...storage.objects.keys()].filter((k) => k.includes(user.id))).toHaveLength(2);
   });
 });
+
+describe('Stockage en mémoire (site de test) : URL signées servies par l’API', () => {
+  it('sert la photo avec une signature valide, refuse sinon', async () => {
+    const user = await signup('homme', 'Memoire');
+    const res = await uploadPhoto(user).expect(201);
+    const url: string = res.body.photos[0].url;
+    expect(url).toMatch(/^\/api\/photos\/fichier\/photos\/.+\?e=\d+&s=/);
+
+    const ok = await api().get(url).expect(200);
+    expect(ok.headers['content-type']).toBe('image/webp');
+
+    await api().get(url.replace(/s=[^&]+/, 's=falsifiee')).expect(403);
+    await api().get(url.replace(/e=\d+/, 'e=1000')).expect(403); // expirée
+    await api().get(url.split('?')[0]).expect(403); // sans signature
+  });
+});
