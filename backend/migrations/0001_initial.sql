@@ -1,11 +1,8 @@
-/**
- * Schéma PostgreSQL 15 de coeur-vrai.com.
- *
- * Idempotent : peut être rejoué sans erreur (`npm run db:migrate`).
- * Tables : users, profiles_homme, profiles_femme_trans, likes, matches,
- * messages, reports, blocks.
- */
-export const schema = /* sql */ `
+-- 0001 — Schéma initial de Cœur Vrai (PostgreSQL 15).
+-- Rejouable sans erreur : il reprend le schéma historique (db/schema.ts), y compris
+-- les mises à niveau des bases créées avant le système de migrations versionnées.
+-- Les évolutions suivantes vont dans de NOUVEAUX fichiers (0002_…, 0003_…) :
+-- ne jamais modifier une migration déjà appliquée en production.
 CREATE EXTENSION IF NOT EXISTS citext;
 
 -- ---------------------------------------------------------------- Users
@@ -162,4 +159,3 @@ CREATE TABLE IF NOT EXISTS blocks (
   PRIMARY KEY (blocker_id, blocked_id),
   CHECK (blocker_id <> blocked_id)
 );
-`;

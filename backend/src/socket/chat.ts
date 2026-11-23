@@ -1,15 +1,20 @@
 import { Server, Socket } from 'socket.io';
+import { logger } from '../utils/logger';
 import { z } from 'zod';
 import { pool } from '../utils/db';
 import { redis } from '../utils/redis';
 import { TokenPayload, verifyToken } from '../utils/jwt';
 import { findActiveMatchForUser, isBlocked, otherUser } from '../db/queries';
 import { socketClientIp, trackActivity } from '../services/activity';
+import { CTX, encrypt } from '../utils/crypto';
+import { sessionTokenFromHeaders } from '../utils/session';
+import { isAllowedOrigin } from '../middleware/csrf';
 
 /**
  * Chat temps réel.
  *
- * Connexion : `io(URL, { auth: { token } })`.
+ * Connexion : `io()` depuis le site ; la session est lue dans le cookie HttpOnly
+ * et l'origine de la connexion est vérifiée (pas de détournement depuis un autre site).
  * Chaque socket rejoint `user:<id>` (notifications) puis `match:<id>` via `chat:join`.
  *
  * Client → serveur :
@@ -44,8 +49,13 @@ async function allowMessage(userId: string): Promise<boolean> {
 export function registerChat(io: Server): void {
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth?.token;
-      if (typeof token !== 'string') return next(new Error('unauthorized'));
+      // Origine présente ET étrangère au site → refus (détournement de WebSocket depuis un
+      // autre site). Une requête de même origine peut ne pas porter d'Origin (premier GET
+      // de Socket.io) ; le cookie SameSite=Strict n'est de toute façon jamais envoyé par un autre site.
+      const origin = socket.handshake.headers.origin;
+      if (origin && !isAllowedOrigin(origin)) return next(new Error('forbidden origin'));
+      const token = sessionTokenFromHeaders(socket.handshake.headers);
+      if (!token) return next(new Error('unauthorized'));
       const user = verifyToken(token);
 
       const { rows } = await pool.query('SELECT status FROM users WHERE id = $1', [user.sub]);
@@ -70,7 +80,7 @@ export function registerChat(io: Server): void {
         try {
           await handler(payload, reply);
         } catch (err) {
-          if (!(err instanceof z.ZodError)) console.error('[socket]', err);
+          if (!(err instanceof z.ZodError)) logger.error('socket.handler_failed', err);
           reply({ error: 'Requête invalide' });
         }
       };
@@ -103,13 +113,13 @@ export function registerChat(io: Server): void {
         const { rows } = await pool.query(
           `INSERT INTO messages (match_id, sender_id, content) VALUES ($1, $2, $3)
            RETURNING id, match_id, sender_id, content, created_at`,
-          [matchId, user.sub, content],
+          [matchId, user.sub, encrypt(content, CTX.messageContent)],
         );
         const message = {
           id: rows[0].id,
           matchId: rows[0].match_id,
           senderId: rows[0].sender_id,
-          content: rows[0].content,
+          content, // texte en clair, jamais relu depuis la base
           createdAt: rows[0].created_at,
         };
 

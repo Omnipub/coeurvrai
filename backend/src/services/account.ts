@@ -3,6 +3,11 @@ import { pool, withTransaction } from '../utils/db';
 import { AccountType, TERMS_VERSION, User } from '../models/types';
 import { PROFILE_TABLE } from './profiles';
 import { deleteOnfidoApplicants } from './onfido';
+import { deleteUserFiles, listOwnPhotos } from './photos';
+import { readConnectionData } from './activity';
+import { CTX, decrypt } from '../utils/crypto';
+import { getStorage } from './storage';
+import { config } from '../utils/config';
 
 /**
  * Supprime définitivement un compte et toutes ses données.
@@ -12,6 +17,7 @@ import { deleteOnfidoApplicants } from './onfido';
  * matchs (envoyés et reçus), blocages et signalements émis ou reçus.
  * Les membres avec qui la personne avait matché sont notifiés (`match:closed`).
  *
+ * Les fichiers photos sont ensuite RÉELLEMENT supprimés du bucket.
  * L'applicant Onfido éventuel (et donc selfie / vidéo de vérification) est
  * également supprimé chez Onfido.
  *
@@ -30,6 +36,7 @@ export async function deleteAccount(userId: string, io?: Server): Promise<void> 
     return { matchIds: rows.map((r) => r.id), applicantId: deleted.rows[0]?.onfido_applicant_id ?? null };
   });
 
+  await deleteUserFiles([userId]);
   await deleteOnfidoApplicants([applicantId]);
 
   if (io) {
@@ -48,6 +55,7 @@ export interface AccountExport {
   verification: Record<string, unknown>;
   connectionData: Record<string, unknown>;
   profile: Record<string, unknown> | null;
+  photos: unknown[];
   likesGiven: unknown[];
   likesReceived: unknown[];
   matches: unknown[];
@@ -122,16 +130,24 @@ export async function buildExport(userId: string): Promise<AccountExport> {
     },
     connectionData: {
       lastActivityAt: user.last_activity_at,
-      lastIp: user.last_ip,
-      ipLogs: user.ip_logs,
+      ...(({ lastIp, ipLogs }) => ({ lastIp, ipLogs: [...ipLogs].reverse() }))(readConnectionData(user)),
     },
     profile: profile[0] ?? null,
+    photos: await Promise.all(
+      (await listOwnPhotos(userId)).map(async (p) => ({
+        id: p.id,
+        position: p.position,
+        createdAt: p.created_at,
+        // Lien de téléchargement valable quelques minutes seulement.
+        url: await getStorage().signedUrl(p.storage_key, config.photos.urlTtlSeconds),
+      })),
+    ),
     likesGiven,
     likesReceived,
     matches,
-    messagesSent,
+    messagesSent: messagesSent.map((m) => ({ ...m, content: decrypt(m.content, CTX.messageContent) })),
     blocks,
-    reportsFiled,
+    reportsFiled: reportsFiled.map((r) => ({ ...r, details: decrypt(r.details, CTX.reportDetails) })),
     reportsReceived,
     notes: [
       'Le mot de passe n’est pas exporté : il n’est stocké que sous forme de hachage irréversible.',

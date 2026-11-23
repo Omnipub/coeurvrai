@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Request, Router } from 'express';
 import { z } from 'zod';
 import { pool } from '../utils/db';
 import { asyncHandler, HttpError } from '../utils/http';
@@ -13,15 +13,14 @@ import {
 } from '../services/profiles';
 
 const router = Router();
-router.use(requireAuth);
 
-const photoUrl = z.string().url().max(500);
+const viewerOf = (req: Request) => ({ id: req.user!.sub, accountType: req.user!.accountType });
+router.use(requireAuth);
 
 const baseUpdate = {
   displayName: z.string().trim().min(2).max(40).optional(),
   bio: z.string().max(1000).optional(),
   city: z.string().trim().max(80).nullable().optional(),
-  photos: z.array(photoUrl).max(6).optional(),
 };
 
 const updateSchemas = {
@@ -41,7 +40,6 @@ const COLUMN: Record<string, string> = {
   displayName: 'display_name',
   bio: 'bio',
   city: 'city',
-  photos: 'photos',
   heightCm: 'height_cm',
   pronouns: 'pronouns',
   photosMatchesOnly: 'photos_matches_only',
@@ -58,7 +56,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const row = await loadProfile(req.user!.sub, req.user!.accountType);
     if (!row) throw new HttpError(404, 'Profil introuvable');
-    res.json({ profile: toPublicProfile(row, { revealPhotos: true }) });
+    res.json({ profile: await toPublicProfile(row, { viewer: viewerOf(req), matched: true }) });
   }),
 );
 
@@ -82,7 +80,7 @@ router.put(
     );
 
     const row = await loadProfile(sub, accountType);
-    res.json({ profile: toPublicProfile(row, { revealPhotos: true }) });
+    res.json({ profile: await toPublicProfile(row, { viewer: viewerOf(req), matched: true }) });
   }),
 );
 
@@ -111,7 +109,10 @@ router.get(
       [sub, limit],
     );
 
-    res.json({ profiles: rows.map((r) => toPublicProfile(r, { revealPhotos: false })) });
+    const viewer = viewerOf(req);
+    res.json({
+      profiles: await Promise.all(rows.map((r) => toPublicProfile(r, { viewer, matched: false }))),
+    });
   }),
 );
 
@@ -130,8 +131,8 @@ router.get(
     ]);
     if (!rows[0]) throw new HttpError(404, 'Profil introuvable');
 
-    const revealPhotos = await hasActiveMatch(sub, id);
-    res.json({ profile: toPublicProfile(rows[0], { revealPhotos }) });
+    const matched = await hasActiveMatch(sub, id);
+    res.json({ profile: await toPublicProfile(rows[0], { viewer: viewerOf(req), matched }) });
   }),
 );
 

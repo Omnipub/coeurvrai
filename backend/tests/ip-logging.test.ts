@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { TERMS_VERSION } from '../src/models/types';
+import { CTX, decrypt, isEncrypted } from '../src/utils/crypto';
 import { api, auth, pool, setupTestDb, signup, waitFor } from './helpers';
 
 setupTestDb();
 
+/** Ligne utilisateur, IP déchiffrées (elles sont stockées chiffrées). */
 async function userRow(id: string) {
   const { rows } = await pool.query('SELECT last_ip, last_activity_at, ip_logs FROM users WHERE id = $1', [id]);
-  return rows[0];
+  const row = rows[0];
+  expect(row.last_ip === null || isEncrypted(row.last_ip)).toBe(true);
+  return {
+    ...row,
+    last_ip: decrypt(row.last_ip, CTX.ip),
+    ip_logs: row.ip_logs.map((e: { ip: string; date: string }) => ({ ...e, ip: decrypt(e.ip, CTX.ip) })),
+  };
 }
 
 describe('Journalisation des IP de connexion', () => {

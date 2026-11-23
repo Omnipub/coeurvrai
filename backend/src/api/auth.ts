@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import bcrypt from 'bcrypt';
+import { logger } from '../utils/logger';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { pool, withTransaction } from '../utils/db';
 import { config } from '../utils/config';
 import { asyncHandler, HttpError } from '../utils/http';
-import { signToken } from '../utils/jwt';
+import { clearSessionCookie, setSessionCookie } from '../utils/session';
 import { ageFromBirthdate } from '../utils/age';
 import { requireAuth } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
@@ -22,12 +23,8 @@ const signupSchema = z.object({
   displayName: z.string().trim().min(2).max(40),
   // Deux consentements distincts : CGU + charte, et traitement des données
   // sensibles (RGPD art. 9.2.a, consentement explicite et séparé).
-  acceptTerms: z.literal(true, {
-    errorMap: () => ({ message: 'Vous devez accepter les CGU et la charte de la communauté' }),
-  }),
-  gdprConsent: z.literal(true, {
-    errorMap: () => ({ message: 'Votre consentement au traitement des données sensibles est requis' }),
-  }),
+  acceptTerms: z.literal(true, { error: 'Vous devez accepter les CGU et la charte de la communauté' }),
+  gdprConsent: z.literal(true, { error: 'Votre consentement au traitement des données sensibles est requis' }),
 });
 
 const loginSchema = z.object({
@@ -83,9 +80,9 @@ router.post(
 
     await recordActivity(user.id, req.ip ?? null, { isLogin: true });
     // Un échec d'envoi ne doit pas bloquer l'inscription : le membre pourra renvoyer le lien.
-    await sendVerificationEmail(user.id, user.email).catch((err) => console.error('[mail]', err));
-    const token = signToken({ sub: user.id, accountType: user.account_type, role: user.role });
-    res.status(201).json({ token, user: publicUser(user) });
+    await sendVerificationEmail(user.id, user.email).catch((err) => logger.error('mail.verification_failed', err));
+    setSessionCookie(res, { sub: user.id, accountType: user.account_type, role: user.role });
+    res.status(201).json({ user: publicUser(user) });
   }),
 );
 
@@ -105,8 +102,8 @@ router.post(
     if (user.status !== 'active') throw new HttpError(403, 'Compte suspendu');
 
     await recordActivity(user.id, req.ip ?? null, { isLogin: true });
-    const token = signToken({ sub: user.id, accountType: user.account_type, role: user.role });
-    res.json({ token, user: publicUser(user) });
+    setSessionCookie(res, { sub: user.id, accountType: user.account_type, role: user.role });
+    res.json({ user: publicUser(user) });
   }),
 );
 
@@ -122,6 +119,12 @@ router.get(
     res.json({ user: publicUser(rows[0]) });
   }),
 );
+
+/** POST /api/auth/logout — supprime le cookie de session. */
+router.post('/logout', (_req, res) => {
+  clearSessionCookie(res);
+  res.status(204).end();
+});
 
 /** POST /api/auth/send-verification-email — (r)envoie le lien de vérification. */
 router.post(

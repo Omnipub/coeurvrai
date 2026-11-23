@@ -1,5 +1,6 @@
 import { pool } from '../utils/db';
 import { AccountType } from '../models/types';
+import { canSeeClearPhotos, PHOTO_KEYS_SQL, PhotoKeys, signPhotos, Viewer } from './photos';
 
 export const PROFILE_TABLE: Record<AccountType, string> = {
   homme: 'profiles_homme',
@@ -13,7 +14,10 @@ export interface PublicProfile {
   age: number;
   city: string | null;
   bio: string;
+  /** URL signées à durée courte (nettes ou floutées selon les droits du lecteur). */
   photos: string[];
+  /** Vrai si les URL renvoyées sont celles des versions floutées. */
+  photosBlurred: boolean;
   heightCm?: number | null;
   pronouns?: string | null;
   photosMatchesOnly?: boolean;
@@ -28,13 +32,26 @@ export function profileSelect(type: AccountType): string {
   return `
     SELECT u.id, u.account_type, u.verified_badge,
            date_part('year', age(u.birthdate))::int AS age,
-           p.display_name, p.city, p.bio, p.photos, ${extra}
+           p.display_name, p.city, p.bio, ${PHOTO_KEYS_SQL} AS photo_keys, ${extra}
       FROM users u
       JOIN ${PROFILE_TABLE[type]} p ON p.user_id = u.id`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function toPublicProfile(row: any, opts: { revealPhotos: boolean }): PublicProfile {
+/**
+ * Profil public vu par `viewer`. Les URL des photos sont signées ici, après
+ * application des règles de visibilité (services/photos.ts).
+ */
+export async function toPublicProfile(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  row: any,
+  { viewer, matched }: { viewer: Viewer; matched: boolean },
+): Promise<PublicProfile> {
+  const clear = await canSeeClearPhotos(
+    viewer,
+    { id: row.id, accountType: row.account_type, photosMatchesOnly: row.photos_matches_only },
+    matched,
+  );
+  const keys = (row.photo_keys ?? []) as PhotoKeys[];
   const profile: PublicProfile = {
     id: row.id,
     accountType: row.account_type,
@@ -42,7 +59,8 @@ export function toPublicProfile(row: any, opts: { revealPhotos: boolean }): Publ
     age: row.age,
     city: row.city,
     bio: row.bio,
-    photos: row.photos,
+    photos: await signPhotos(keys, clear),
+    photosBlurred: keys.length > 0 && !clear,
     verified: row.verified_badge,
   };
   if (row.account_type === 'homme') {
@@ -50,7 +68,6 @@ export function toPublicProfile(row: any, opts: { revealPhotos: boolean }): Publ
   } else {
     profile.pronouns = row.pronouns;
     profile.photosMatchesOnly = row.photos_matches_only;
-    if (row.photos_matches_only && !opts.revealPhotos) profile.photos = [];
   }
   return profile;
 }

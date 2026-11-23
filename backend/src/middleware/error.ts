@@ -1,4 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
+import { logger, safePath } from '../utils/logger';
+import { MulterError } from 'multer';
 import { ZodError } from 'zod';
 import { HttpError } from '../utils/http';
 
@@ -7,13 +9,19 @@ export function notFound(_req: Request, _res: Response, next: NextFunction) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ZodError) {
     return res.status(400).json({ error: 'Données invalides', details: err.flatten().fieldErrors });
+  }
+  if (err instanceof MulterError) {
+    const tooLarge = err.code === 'LIMIT_FILE_SIZE';
+    return res.status(tooLarge ? 413 : 400).json({
+      error: tooLarge ? 'Fichier trop volumineux (10 Mo maximum)' : 'Envoi de fichier invalide',
+    });
   }
   if (err instanceof HttpError) {
     return res.status(err.status).json({ error: err.message });
   }
-  console.error(err);
+  logger.error('http.unhandled', err, { method: req.method, path: safePath(req.originalUrl) });
   res.status(500).json({ error: 'Erreur interne' });
 }

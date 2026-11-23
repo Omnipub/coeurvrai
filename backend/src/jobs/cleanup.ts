@@ -1,6 +1,11 @@
 import { pool } from '../utils/db';
+import { logger } from '../utils/logger';
+import { sendMail } from '../services/mailer';
+import { config } from '../utils/config';
 import { IP_RETENTION, PRUNED_IP_LOGS_SQL } from '../services/activity';
 import { deleteOnfidoApplicants } from '../services/onfido';
+import { deleteUserFiles, userPrefix } from '../services/photos';
+import { getStorage } from '../services/storage';
 
 /**
  * Purges RGPD automatiques (voir la politique de confidentialité, § 8) :
@@ -24,14 +29,29 @@ export interface CleanupResult {
   inactiveAccountsDeleted: number;
   closedReportsDeleted: number;
   ipLogsPruned: number;
+  orphanPhotoFoldersDeleted: number;
 }
 
-/**
- * Envoie le préavis de suppression pour inactivité.
- * TODO : brancher le prestataire d'e-mails transactionnels.
- */
+/** Envoie le préavis de suppression pour inactivité (SMTP Brevo en production). */
 async function sendInactivityNotice(email: string): Promise<void> {
-  console.info(`[cleanup] préavis d'inactivité à envoyer à ${email}`);
+  await sendMail({
+    to: email,
+    subject: 'Votre compte Cœur Vrai sera supprimé dans 30 jours',
+    text: [
+      'Bonjour,',
+      '',
+      'Vous ne vous êtes pas connecté·e à Cœur Vrai depuis près de deux ans.',
+      'Conformément à notre politique de confidentialité, votre compte et toutes vos données seront supprimés dans 30 jours.',
+      '',
+      `Pour conserver votre compte, il suffit de vous reconnecter : ${config.appUrl}/login`,
+      '',
+      'L’équipe Cœur Vrai',
+    ].join('\n'),
+    html: `<p>Bonjour,</p>
+<p>Vous ne vous êtes pas connecté·e à Cœur Vrai depuis près de deux ans. Conformément à notre politique de confidentialité, votre compte et toutes vos données seront supprimés dans <strong>30&nbsp;jours</strong>.</p>
+<p>Pour conserver votre compte, il suffit de <a href="${config.appUrl}/login">vous reconnecter</a>.</p>
+<p>L’équipe Cœur Vrai</p>`,
+  });
 }
 
 /**
@@ -46,15 +66,18 @@ export async function purgeInactiveAccounts(): Promise<{ warned: number; deleted
         AND last_activity_at < now() - INTERVAL '${INACTIVITY_LIMIT}' + INTERVAL '${INACTIVITY_NOTICE}'
       RETURNING email`,
   );
-  for (const { email } of warned.rows) await sendInactivityNotice(email);
+  for (const { email } of warned.rows) {
+    await sendInactivityNotice(email).catch((err) => logger.error('cleanup.notice_failed', err));
+  }
 
   // Suppression en cascade : profil, photos, likes, matchs, messages, blocages, signalements.
-  const deleted = await pool.query<{ onfido_applicant_id: string | null }>(
+  const deleted = await pool.query<{ id: string; onfido_applicant_id: string | null }>(
     `DELETE FROM users
       WHERE last_activity_at < now() - INTERVAL '${INACTIVITY_LIMIT}'
         AND inactivity_warned_at < now() - INTERVAL '${INACTIVITY_NOTICE}'
-      RETURNING onfido_applicant_id`,
+      RETURNING id, onfido_applicant_id`,
   );
+  await deleteUserFiles(deleted.rows.map((r) => r.id));
   await deleteOnfidoApplicants(deleted.rows.map((r) => r.onfido_applicant_id));
 
   return { warned: warned.rowCount ?? 0, deleted: deleted.rowCount ?? 0 };
@@ -86,6 +109,28 @@ export async function purgeOldIpLogs(): Promise<number> {
 }
 
 /**
+ * Supprime du bucket les dossiers de photos dont le membre n'existe plus
+ * (filet de sécurité si une suppression de fichiers a échoué).
+ */
+export async function purgeOrphanPhotos(): Promise<number> {
+  const storage = getStorage();
+  const folders = (await storage.listFolders('photos/')).filter((f) =>
+    /^[0-9a-f-]{36}$/i.test(f),
+  );
+  if (!folders.length) return 0;
+  const { rows } = await pool.query<{ id: string }>('SELECT id FROM users WHERE id = ANY($1::uuid[])', [folders]);
+  const alive = new Set(rows.map((r) => r.id));
+  let removed = 0;
+  for (const folder of folders) {
+    if (!alive.has(folder)) {
+      await storage.deletePrefix(userPrefix(folder));
+      removed++;
+    }
+  }
+  return removed;
+}
+
+/**
  * Exécute toutes les purges sous verrou consultatif PostgreSQL.
  * Retourne null si un autre processus effectue déjà le nettoyage.
  */
@@ -104,8 +149,9 @@ export async function runCleanup(): Promise<CleanupResult | null> {
         inactiveAccountsDeleted: inactive.deleted,
         closedReportsDeleted: await purgeClosedReports(),
         ipLogsPruned: await purgeOldIpLogs(),
+        orphanPhotoFoldersDeleted: await purgeOrphanPhotos(),
       };
-      console.info('[cleanup]', JSON.stringify(result));
+      logger.info('cleanup.done', { ...result });
       return result;
     } finally {
       await lock.query('SELECT pg_advisory_unlock($1)', [CLEANUP_LOCK_KEY]);

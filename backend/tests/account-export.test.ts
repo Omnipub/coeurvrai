@@ -33,7 +33,8 @@ describe('GET /api/account/export', () => {
     expect(data.connectionData.lastActivityAt).toBeTruthy();
 
     // Profil et photos.
-    expect(data.profile.photos).toEqual(['https://cdn.test/hugo-1.jpg', 'https://cdn.test/hugo-2.jpg']);
+    expect(data.photos).toHaveLength(2);
+    expect(data.photos[0]).toMatchObject({ position: 0, url: expect.stringContaining(`photos/${hugo.id}/`) });
 
     // Activité.
     expect(data.likesGiven.map((l: { userId: string }) => l.userId).sort()).toEqual([lea.id, sara.id].sort());

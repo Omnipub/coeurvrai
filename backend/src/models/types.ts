@@ -51,7 +51,9 @@ export interface User {
   terms_version: string | null;
   gdpr_consent_date: Date | null;
   last_activity_at: Date;
+  /** Chiffrée (utils/crypto.ts). */
   last_ip: string | null;
+  last_ip_hmac: string | null;
   ip_logs: IpLogEntry[];
   inactivity_warned_at: Date | null;
   email_verified: boolean;

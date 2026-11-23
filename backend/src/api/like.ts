@@ -8,6 +8,8 @@ import { rateLimit } from '../middleware/rateLimit';
 import { findActiveMatchForUser, isBlocked } from '../db/queries';
 import { compatibleAccountType } from '../models/types';
 import { PROFILE_TABLE } from '../services/profiles';
+import { canSeeClearPhotos, signPhotos } from '../services/photos';
+import { CTX, decrypt } from '../utils/crypto';
 
 const router = Router();
 router.use(requireAuth);
@@ -90,7 +92,9 @@ router.get(
 
     const { rows } = await pool.query(
       `SELECT m.id AS match_id, m.created_at,
-              o.id AS user_id, o.verified_badge, p.display_name, p.photos,
+              o.id AS user_id, o.account_type, o.verified_badge, p.display_name,
+              (SELECT json_build_object('key', ph.storage_key, 'blur', ph.blur_key)
+                 FROM photos ph WHERE ph.user_id = o.id ORDER BY ph.position LIMIT 1) AS first_photo,
               last.content AS last_message, last.created_at AS last_message_at
          FROM matches m
          JOIN users o ON o.id = CASE WHEN m.user_a = $1 THEN m.user_b ELSE m.user_a END
@@ -106,18 +110,27 @@ router.get(
       [sub],
     );
 
+    const viewer = { id: sub, accountType };
+    const photos = await Promise.all(
+      rows.map(async (r) => {
+        if (!r.first_photo) return null;
+        // Match actif : seule la règle « abonnement » peut encore imposer le flou.
+        const clear = await canSeeClearPhotos(viewer, { id: r.user_id, accountType: r.account_type }, true);
+        return (await signPhotos([r.first_photo], clear))[0];
+      }),
+    );
     res.json({
-      matches: rows.map((r) => ({
+      matches: rows.map((r, i) => ({
         matchId: r.match_id,
         createdAt: r.created_at,
         user: {
           id: r.user_id,
           displayName: r.display_name,
-          photo: r.photos[0] ?? null,
+          photo: photos[i],
           verified: r.verified_badge,
         },
         lastMessage: r.last_message
-          ? { content: r.last_message, createdAt: r.last_message_at }
+          ? { content: decrypt(r.last_message, CTX.messageContent), createdAt: r.last_message_at }
           : null,
       })),
     });
@@ -162,7 +175,7 @@ router.get(
       messages: rows.reverse().map((m) => ({
         id: m.id,
         senderId: m.sender_id,
-        content: m.content,
+        content: decrypt(m.content, CTX.messageContent),
         createdAt: m.created_at,
         readAt: m.read_at,
       })),

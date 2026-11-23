@@ -1,4 +1,4 @@
-# Cœur Vrai (coeur-vrai.com)
+# Cœur Vrai (coeurvrai.com)
 
 Site de rencontre bienveillant entre **hommes cis** et **femmes trans**.
 Ce dépôt contient le MVP : API temps réel + application web.
@@ -18,11 +18,14 @@ Ce dépôt contient le MVP : API temps réel + application web.
 | Temps réel | Socket.io 4 |
 | Base de données | PostgreSQL 15 (driver `pg`, SQL brut) |
 | Cache / files | Redis 7 (file de modération, rate limiting) |
-| Authentification | JWT (`jsonwebtoken`) + mots de passe `bcrypt` |
-| E-mails | nodemailer (SMTP) |
+| Authentification | JWT dans un cookie HttpOnly (`jsonwebtoken`), mots de passe `bcryptjs`, protection CSRF |
+| Photos | Object Storage S3 privé (OVH ; SeaweedFS en local), URL signées, `sharp` (EXIF retiré, WebP) |
+| Chiffrement | AES-256-GCM applicatif (messages, signalements, IP) |
+| E-mails | nodemailer (SMTP Brevo) |
 | Vérification d'identité | Onfido Studio (`@onfido/api` côté serveur, `onfido-sdk-ui` côté web) |
 | Paiements | Stripe API (client prêt, abonnements à venir) |
-| Frontend | Next.js 14 (App Router) + React 18 + Tailwind CSS 3 |
+| Frontend | Next.js 15 (App Router, mode standalone) + React 19 + Tailwind CSS 3 |
+| Production | Docker Compose sur un VPS OVHcloud (France), Caddy, restic, GitHub Actions |
 
 ---
 
@@ -210,6 +213,10 @@ docker compose exec postgres psql -U coeurvrai -c \
   "UPDATE users SET role = 'moderator' WHERE email = 'moi@exemple.fr';"
 ```
 
+En développement sans S3 (`S3_BUCKET_PHOTOS` vide), les photos sont gardées en mémoire et ne
+s'affichent pas dans le navigateur : pour tester les photos, utiliser la pile locale complète
+(section « Hébergement et production »).
+
 ### Configurer Onfido
 
 1. Créer un compte Onfido (région **EU**) et un jeton API sandbox → `ONFIDO_API_TOKEN`.
@@ -262,6 +269,33 @@ Variables optionnelles : `TEST_DATABASE_URL`, `TEST_REDIS_URL` (défaut : base
 | frontend | `npm run lint` / `typecheck` | ESLint / TypeScript |
 
 ---
+
+## Hébergement et production
+
+Tout est prêt dans le dépôt pour une mise en production en moins d'une heure sur un VPS
+OVHcloud (France) :
+
+| Document / fichier | Contenu |
+|---|---|
+| [`infra/DEPLOIEMENT.md`](infra/DEPLOIEMENT.md) | **procédure pas à pas du jour de l'achat** (OVH, DNS, Brevo, secrets, premier déploiement, checklist) |
+| [`infra/EXPLOITATION.md`](infra/EXPLOITATION.md) | déployer, revenir en arrière, restaurer, journaux, renouveler un secret, incident et CNIL |
+| [`infra/MIGRATION-BDD-MANAGEE.md`](infra/MIGRATION-BDD-MANAGEE.md) | phase 2 : passage à PostgreSQL managé OVH |
+| `docker-compose.prod.yml` | pile de production (Caddy, frontend, backend, migrations, PostgreSQL, Redis, sauvegardes) |
+| `docker-compose.local.yml` | la même pile en local (certificats locaux, SeaweedFS pour S3, Mailpit pour les e-mails) |
+| `infra/caddy/Caddyfile` | HTTPS, redirections 301 des domaines secondaires, en-têtes de sécurité |
+| `infra/backup/` | sauvegardes chiffrées restic, restauration, test de restauration, alertes |
+| `infra/setup-vps.sh`, `infra/generate-secrets.sh`, `infra/deploy.sh` | durcissement du serveur, secrets, déploiement avec retour arrière |
+| `.github/workflows/` | CI (tests, audit, gitleaks, images GHCR) et déploiement manuel |
+| `backend/migrations/` | migrations SQL versionnées |
+
+Tester toute la pile de production en local (Docker requis) :
+
+```bash
+docker compose --env-file infra/local/env.local \
+  -f docker-compose.prod.yml -f docker-compose.local.yml up -d --build
+# Ajouter à /etc/hosts : « 127.0.0.1 coeurvrai.com www.coeurvrai.com coeur-vrai.com »
+# puis ouvrir https://coeurvrai.com (certificat local) ; e-mails : http://127.0.0.1:8025
+```
 
 ## SEO, GEO et confidentialité
 

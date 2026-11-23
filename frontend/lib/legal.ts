@@ -8,16 +8,16 @@ import { BRAND } from './site';
 
 export const LEGAL = {
   siteName: BRAND,
-  domain: 'coeur-vrai.com',
-  siteUrl: 'https://coeur-vrai.com',
+  domain: 'coeurvrai.com',
+  siteUrl: 'https://coeurvrai.com',
   company: '[Raison sociale]',
   legalForm: '[Forme juridique et capital social]',
   address: '[Adresse du siège social]',
   rcs: '[Numéro RCS / SIREN]',
   publicationDirector: '[Nom du directeur ou de la directrice de la publication]',
-  contactEmail: 'contact@coeur-vrai.com',
-  dpoEmail: 'dpo@coeur-vrai.com',
-  moderationEmail: 'moderation@coeur-vrai.com',
+  contactEmail: 'contact@coeurvrai.com',
+  dpoEmail: 'dpo@coeurvrai.com',
+  moderationEmail: 'moderation@coeurvrai.com',
   host: '[Hébergeur — nom, adresse, téléphone ; serveurs situés dans l’Union européenne]',
   mediator: '[Médiateur de la consommation — nom et site web]',
 };

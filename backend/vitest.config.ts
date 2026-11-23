@@ -14,6 +14,8 @@ const env = {
   REDIS_URL: process.env.TEST_REDIS_URL ?? 'redis://localhost:6379/15',
   JWT_SECRET: 'test-secret',
   BCRYPT_ROUNDS: '4',
+  // Clé de test (32 octets) — jamais utilisée hors des tests.
+  ENCRYPTION_KEYS: 'test:' + Buffer.alloc(32, 1).toString('base64'),
   CLEANUP_CRON: '',
   APP_URL: 'https://app.test',
   SMTP_URL: '',

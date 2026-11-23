@@ -1,0 +1,123 @@
+# Déploiement en PRODUCTION — jamais automatique sur un simple push.
+# Déclencheurs : manuel (bouton « Run workflow ») ou création d'un tag « v* ».
+#
+# Garde-fous :
+#   - le job ne s'exécute que si la variable de dépôt DEPLOY_ENABLED vaut « true »
+#     et que les secrets du VPS sont renseignés (sinon : arrêt immédiat, rien n'est touché) ;
+#   - environnement GitHub « production » (possibilité d'exiger une approbation) ;
+#   - contrôle de santé après déploiement, retour automatique à la version précédente sinon.
+#
+# Secrets à créer (Settings › Secrets and variables › Actions) — voir infra/DEPLOIEMENT.md :
+#   VPS_HOST, VPS_SSH_PORT, VPS_SSH_KEY (clé privée dédiée), VPS_SSH_KNOWN_HOSTS
+name: Déploiement production
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version à déployer (tag vX.Y.Z, ou sha-<commit> d'une image déjà construite)"
+        required: true
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  images:
+    name: Images de la version
+    if: vars.DEPLOY_ENABLED == 'true' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - { name: backend, context: backend }
+          - { name: frontend, context: frontend }
+          - { name: backup, context: infra/backup }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          provenance: false
+          tags: ghcr.io/omnipub/coeurvrai/${{ matrix.name }}:${{ github.ref_name }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+
+  deploy:
+    name: Déploiement sur le VPS
+    needs: [images]
+    if: always() && vars.DEPLOY_ENABLED == 'true' && (needs.images.result == 'success' || needs.images.result == 'skipped')
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - name: Vérification des secrets du VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          missing=""
+          for s in VPS_HOST VPS_SSH_KEY VPS_SSH_KNOWN_HOSTS; do [ -n "${!s}" ] || missing="$missing $s"; done
+          if [ -n "$missing" ]; then
+            echo "::error::Secrets manquants :$missing — déploiement annulé (voir infra/DEPLOIEMENT.md)."
+            exit 1
+          fi
+
+      - name: Version à déployer
+        id: v
+        run: |
+          v="${{ github.event.inputs.version || github.ref_name }}"
+          [[ "$v" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "::error::Version invalide"; exit 1; }
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          # Fichiers de déploiement pris au même commit que les images.
+          case "$v" in sha-*) ref="${v#sha-}" ;; *) ref="$v" ;; esac
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.v.outputs.ref }}
+
+      - name: Paquet de déploiement (compose, Caddy, PostgreSQL, scripts)
+        run: tar -czf bundle.tgz docker-compose.prod.yml infra/caddy/Caddyfile infra/postgres infra/deploy.sh
+
+      - name: Clé SSH dédiée
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Envoi et déploiement (retour automatique en cas d'échec)
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+          VERSION: ${{ steps.v.outputs.version }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ssh_opts=(-i ~/.ssh/deploy_key -p "$VPS_SSH_PORT" -o StrictHostKeyChecking=yes)
+          scp -i ~/.ssh/deploy_key -P "$VPS_SSH_PORT" -o StrictHostKeyChecking=yes \
+            bundle.tgz "deploy@$VPS_HOST:/opt/coeurvrai/bundle-$VERSION.tgz"
+          scp -i ~/.ssh/deploy_key -P "$VPS_SSH_PORT" -o StrictHostKeyChecking=yes \
+            infra/deploy.sh "deploy@$VPS_HOST:/opt/coeurvrai/deploy.sh"
+          # Jeton GHCR éphémère transmis sur l'entrée standard (jamais en argument).
+          # shellcheck disable=SC2029  # la version est volontairement insérée côté client (déjà validée)
+          printf '%s' "$GHCR_TOKEN" | ssh "${ssh_opts[@]}" "deploy@$VPS_HOST" \
+            "bash /opt/coeurvrai/deploy.sh --version '$VERSION' --bundle '/opt/coeurvrai/bundle-$VERSION.tgz' --ghcr-user '${{ github.actor }}' --ghcr-token-stdin"
+
+      - name: Nettoyage de la clé
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

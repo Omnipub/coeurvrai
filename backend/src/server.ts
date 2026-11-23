@@ -1,4 +1,5 @@
 import { createApp } from './app';
+import { logger } from './utils/logger';
 import { config } from './utils/config';
 import { pool } from './utils/db';
 import { connectRedis, redis } from './utils/redis';
@@ -11,7 +12,7 @@ async function start(): Promise<void> {
   const scheduler = startScheduler();
   server.on('close', () => scheduler?.stop());
   server.listen(config.port, () => {
-    console.log(`API Cœur Vrai démarrée sur http://localhost:${config.port}`);
+    logger.info('server.started', { port: config.port });
   });
 }
 
@@ -26,6 +27,6 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
 start().catch((err) => {
-  console.error('Échec du démarrage :', err);
+  logger.error('server.start_failed', err);
   process.exit(1);
 });

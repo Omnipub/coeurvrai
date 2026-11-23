@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { api, API_URL, getToken } from '@/lib/api';
+import { api, API_URL } from '@/lib/api';
 import type { ChatMessage } from '@/types';
 
 type Ack = { ok?: boolean; error?: string; message?: ChatMessage };
@@ -22,7 +22,7 @@ export function useChat(matchId: string) {
       .then(({ messages }) => setMessages(messages))
       .catch((e: Error) => setError(e.message));
 
-    const socket = io(API_URL, { auth: { token: getToken() } });
+    const socket = io(API_URL || undefined, { withCredentials: true, addTrailingSlash: false }); // session : cookie HttpOnly
     socketRef.current = socket;
 
     socket.on('connect', () => {

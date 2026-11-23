@@ -1,4 +1,5 @@
 import { Configuration, DefaultApi, Region, WebhookEventVerifier } from '@onfido/api';
+import { logger } from '../utils/logger';
 import type { WebhookEvent } from '@onfido/api';
 import { config } from '../utils/config';
 import { OnfidoStatus } from '../models/types';
@@ -85,7 +86,7 @@ export async function deleteOnfidoApplicants(ids: (string | null)[]): Promise<vo
     ids
       .filter((id): id is string => Boolean(id))
       .map((id) =>
-        onfido.deleteApplicant(id).catch((err) => console.error('[onfido] suppression applicant', id, err)),
+        onfido.deleteApplicant(id).catch((err) => logger.error('onfido.delete_applicant_failed', err)),
       ),
   );
 }

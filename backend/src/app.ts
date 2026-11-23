@@ -1,4 +1,5 @@
 import http from 'http';
+import { requestLog } from './middleware/requestLog';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -7,11 +8,13 @@ import { config } from './utils/config';
 import { pool } from './utils/db';
 import { redis } from './utils/redis';
 import { errorHandler, notFound } from './middleware/error';
+import { csrfProtection } from './middleware/csrf';
 import authRouter from './api/auth';
 import accountRouter from './api/account';
 import profileRouter from './api/profile';
 import likeRouter from './api/like';
 import reportRouter from './api/report';
+import photoRouter from './api/photos';
 import verificationRouter from './api/verification';
 import { registerChat } from './socket/chat';
 
@@ -19,7 +22,7 @@ import { registerChat } from './socket/chat';
 export function createApp() {
   const app = express();
 
-  app.set('trust proxy', 1);
+  app.set('trust proxy', config.trustProxy);
   app.use(helmet());
   // L'API ne doit jamais être indexée (profils, messages : risque d'outing).
   app.use((_req, res, next) => {
@@ -29,7 +32,7 @@ export function createApp() {
   app.get('/robots.txt', (_req, res) => {
     res.type('text/plain').send('User-agent: *\nDisallow: /\n');
   });
-  app.use(cors({ origin: config.corsOrigin, credentials: true, exposedHeaders: ['Content-Disposition'] }));
+  app.use(cors({ origin: config.allowedOrigins, credentials: true, exposedHeaders: ['Content-Disposition'] }));
   app.use(
     express.json({
       limit: '100kb',
@@ -49,10 +52,13 @@ export function createApp() {
     }
   });
 
+  app.use('/api', requestLog);
+  app.use('/api', csrfProtection);
   app.use('/api/auth', authRouter);
   app.use('/api/account', accountRouter);
   app.use('/api/profiles', profileRouter);
   app.use('/api/likes', likeRouter);
+  app.use('/api/photos', photoRouter);
   app.use('/api/verification', verificationRouter);
   app.use('/api', reportRouter);
 
@@ -60,7 +66,12 @@ export function createApp() {
   app.use(errorHandler);
 
   const server = http.createServer(app);
-  const io = new Server(server, { cors: { origin: config.corsOrigin, credentials: true } });
+  // Chemin « /socket.io » sans barre finale : compatible avec les réécritures de Next.js
+  // (qui suppriment la barre finale) comme avec Caddy.
+  const io = new Server(server, {
+    addTrailingSlash: false,
+    cors: { origin: config.allowedOrigins, credentials: true },
+  });
   app.set('io', io);
   registerChat(io);
 

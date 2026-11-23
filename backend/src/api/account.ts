@@ -1,13 +1,15 @@
 import { Router } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import type { Server } from 'socket.io';
 import { pool } from '../utils/db';
 import { asyncHandler, HttpError } from '../utils/http';
 import { requireAuth } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
-import { IpLogEntry, TERMS_VERSION, User } from '../models/types';
+import { TERMS_VERSION, User } from '../models/types';
 import { buildExport, deleteAccount } from '../services/account';
+import { readConnectionData } from '../services/activity';
+import { clearSessionCookie } from '../utils/session';
 
 const router = Router();
 
@@ -24,14 +26,14 @@ router.get(
   asyncHandler(async (req, res) => {
     const { rows } = await pool.query<User>('SELECT * FROM users WHERE id = $1', [req.user!.sub]);
     const user = rows[0];
-    const ipLogs = [...(user.ip_logs as IpLogEntry[])].sort((a, b) => b.date.localeCompare(a.date));
+    const { lastIp, ipLogs } = readConnectionData(user);
 
     res.json({
       email: user.email,
       accountType: user.account_type,
       createdAt: user.created_at,
       lastActivityAt: user.last_activity_at,
-      lastIp: user.last_ip,
+      lastIp,
       ipLogs,
       consents: {
         termsVersion: user.terms_version,
@@ -104,6 +106,7 @@ router.delete(
     }
 
     await deleteAccount(req.user!.sub, req.app.get('io') as Server | undefined);
+    clearSessionCookie(res);
     res.status(204).end();
   }),
 );

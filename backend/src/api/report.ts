@@ -6,6 +6,7 @@ import { asyncHandler, HttpError } from '../utils/http';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { rateLimit } from '../middleware/rateLimit';
 import { REPORT_REASONS } from '../models/types';
+import { CTX, decrypt } from '../utils/crypto';
 import { claimNextReport, createReport, queueStats, resolveReport } from '../services/moderation';
 
 const router = Router();
@@ -65,7 +66,10 @@ mod.post(
     const context = report.message_id
       ? await pool.query('SELECT content, created_at FROM messages WHERE id = $1', [report.message_id])
       : null;
-    res.json({ report, message: context?.rows[0] ?? null });
+    const message = context?.rows[0]
+      ? { ...context.rows[0], content: decrypt(context.rows[0].content, CTX.messageContent) }
+      : null;
+    res.json({ report, message });
   }),
 );
 

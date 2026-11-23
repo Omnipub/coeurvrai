@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { api, getToken, setToken } from '@/lib/api';
+import { api } from '@/lib/api';
 import type { AccountType, AuthUser } from '@/types';
 
 interface SignupInput {
@@ -30,32 +30,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Session lue côté serveur (cookie HttpOnly) : 401 = non connecté·e.
   useEffect(() => {
-    if (!getToken()) {
-      setLoading(false);
-      return;
-    }
     api<{ user: AuthUser }>('/api/auth/me')
       .then(({ user }) => setUser(user))
-      .catch(() => setToken(null))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await api<{ token: string; user: AuthUser }>('/api/auth/login', {
+    const res = await api<{ user: AuthUser }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    setToken(res.token);
     setUser(res.user);
   }, []);
 
   const signup = useCallback(async (input: SignupInput) => {
-    const res = await api<{ token: string; user: AuthUser }>('/api/auth/signup', {
+    const res = await api<{ user: AuthUser }>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    setToken(res.token);
     setUser(res.user);
   }, []);
 
@@ -65,7 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    setToken(null);
+    // Le cookie HttpOnly ne peut être effacé que par le serveur.
+    api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
     setUser(null);
   }, []);
 

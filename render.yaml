@@ -1,0 +1,90 @@
+# Site de TEST de Cœur Vrai sur Render (Blueprint) — DONNÉES FICTIVES UNIQUEMENT.
+# La production, elle, tourne sur un VPS OVHcloud en France (voir infra/DEPLOIEMENT.md).
+#
+# Ce fichier crée en une fois : le site, l'API, PostgreSQL et Redis, en région Francfort,
+# sur les offres gratuites. Mode d'emploi : infra/STAGING-RENDER.md.
+#
+# Différences avec la production (volontaires) :
+#   - pas de Caddy : le site (Next.js) relaie /api et /socket.io vers l'API ;
+#   - photos gardées en mémoire (perdues à chaque redémarrage), servies par URL signées ;
+#   - e-mails non envoyés : leur contenu (liens de confirmation) s'affiche dans les journaux de l'API ;
+#   - site entièrement interdit aux moteurs de recherche, avec un bandeau « Site de test ».
+
+services:
+  # --- API (Express + Socket.io)
+  - type: web
+    name: coeurvrai-staging-api
+    runtime: docker
+    region: frankfurt
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Migrations de la base puis démarrage (l'offre gratuite n'a pas d'étape « pre-deploy »).
+    dockerCommand: sh -c "node dist/db/migrate.js && node dist/server.js"
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DEPLOY_ENV
+        value: staging
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coeurvrai-staging-db
+          property: connectionString
+      - key: MIGRATION_DATABASE_URL
+        fromDatabase:
+          name: coeurvrai-staging-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: coeurvrai-staging-kv
+          property: connectionString
+      # Adresse PUBLIQUE du site : origine autorisée (cookies, CSRF, WebSocket) et liens des e-mails.
+      # Si Render attribue une autre adresse au site, corriger cette valeur (voir infra/STAGING-RENDER.md).
+      - key: PUBLIC_HOST
+        value: coeurvrai-staging.onrender.com
+      # Relais devant l'API : proxy Render du site, puis proxy Render de l'API.
+      - key: TRUST_PROXY_HOPS
+        value: "2"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEYS
+        generateValue: true
+      - key: LOG_PSEUDONYM_KEY
+        generateValue: true
+      - key: BCRYPT_ROUNDS
+        value: "10"
+
+  # --- Site (Next.js)
+  - type: web
+    name: coeurvrai-staging
+    runtime: docker
+    region: frankfurt
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    healthCheckPath: /
+    envVars:
+      # Lues pendant la construction de l'image (arguments de build du Dockerfile).
+      # Adresse PUBLIQUE de l'API : l'offre gratuite n'accepte pas le trafic du réseau privé.
+      # Si Render attribue une autre adresse à l'API, corriger cette valeur puis relancer un déploiement.
+      - key: BACKEND_URL
+        value: coeurvrai-staging-api.onrender.com
+      - key: NEXT_PUBLIC_NOINDEX
+        value: "true"
+
+  # --- Redis (Key Value), accessible uniquement depuis les services Render
+  - type: keyvalue
+    name: coeurvrai-staging-kv
+    region: frankfurt
+    plan: free
+    ipAllowList: []
+
+databases:
+  - name: coeurvrai-staging-db
+    databaseName: coeurvrai
+    user: coeurvrai
+    region: frankfurt
+    plan: free
+    ipAllowList: []

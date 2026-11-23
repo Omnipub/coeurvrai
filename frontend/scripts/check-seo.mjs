@@ -131,7 +131,7 @@ for (const path of paths) {
   for (const t of expected ?? []) if (!types.includes(t)) fail(path, `JSON-LD ${t} manquant`);
   if (path !== '/' && !types.includes('BreadcrumbList')) fail(path, 'BreadcrumbList manquant');
 
-  if (/coeur-vrai(?!\.com)/i.test(visibleText(html).replace(/coeur-vrai\.com/gi, ''))) fail(path, 'marque écrite « coeur-vrai » au lieu de « Cœur Vrai »');
+  if (/coeur-?vrai/i.test(visibleText(html).replace(/coeur-?vrai\.(com|fr)/gi, ''))) fail(path, 'marque écrite « coeur-vrai » au lieu de « Cœur Vrai »');
 
   if (failures === before) console.log(`  ✓ ${path}  (${title.length} / ${desc?.length ?? 0} car., JSON-LD : ${types.join(', ') || '—'})`);
 }

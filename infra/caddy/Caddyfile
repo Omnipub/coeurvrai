@@ -1,0 +1,95 @@
+# Reverse proxy de Cœur Vrai — HTTPS automatique (Let's Encrypt), HTTP/2 et HTTP/3,
+# WebSocket (Socket.io), redirections 301 des domaines secondaires, en-têtes de sécurité.
+# Les valeurs {$VAR} viennent de .env.production (voir docker-compose.prod.yml).
+{
+	# Options globales supplémentaires (en local : « local_certs », certificats auto-signés).
+	{$CADDY_GLOBAL_OPTIONS}
+	email {$ACME_EMAIL}
+	# API d'administration désactivée : rien n'écoute en dehors des ports 80/443.
+	admin off
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+# --- En-têtes de sécurité communs
+(securite) {
+	header {
+		# HTTPS obligatoire pendant 1 an, sous-domaines compris (pas de « preload » au début).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Cross-Origin-Opener-Policy "same-origin"
+		# Caméra autorisée uniquement pour le site et le module de selfie Onfido.
+		Permissions-Policy "camera=(self \"https://sdk.onfido.com\"), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()"
+		# Politique de contenu : uniquement nos domaines, Onfido (vérification d'identité)
+		# et le stockage des photos (URL signées). 'unsafe-inline' est imposé par Next.js
+		# en rendu statique (scripts d'hydratation sans nonce) ; aucun HTML fourni par les
+		# membres n'est jamais injecté dans les pages.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.onfido.com; style-src 'self' 'unsafe-inline' https://sdk.onfido.com; img-src 'self' data: blob: {$S3_PUBLIC_ORIGIN} https://*.onfido.com; font-src 'self' data: https://sdk.onfido.com; connect-src 'self' wss://{$SITE_DOMAIN} https://*.onfido.com wss://*.onfido.com; media-src 'self' blob:; frame-src https://sdk.onfido.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		-Server
+		-X-Powered-By
+	}
+}
+
+# --- Journal d'accès : sans query string, sans cookie ni jeton, rotation automatique.
+(journal) {
+	log {
+		output file /data/logs/access.log {
+			roll_size 50MiB
+			roll_keep 10
+			roll_keep_for 720h
+		}
+		format filter {
+			request>uri regexp "\?.*$" ""
+			request>headers>Cookie delete
+			request>headers>Authorization delete
+			request>headers>X-Sha2-Signature delete
+			request>headers>Referer regexp "\?.*$" ""
+			resp_headers>Set-Cookie delete
+			resp_headers>Location regexp "\?.*$" ""
+		}
+	}
+}
+
+# --- Site principal
+{$SITE_DOMAIN} {
+	import securite
+	import journal
+	encode zstd gzip
+
+	# Fichiers statiques Next.js : noms versionnés, cache d'un an.
+	@statique path /_next/static/*
+	# « ? » : seulement si Next.js ne l'a pas déjà fixé (évite un en-tête en double).
+	header @statique ?Cache-Control "public, max-age=31536000, immutable"
+
+	# API et temps réel (WebSocket Socket.io, WSS) : jamais exposés directement.
+	handle /api/* {
+		reverse_proxy backend:3001
+	}
+	handle /socket.io* {
+		reverse_proxy backend:3001
+	}
+	# État de santé (PostgreSQL + Redis), pour la surveillance externe.
+	handle /health {
+		reverse_proxy backend:3001
+	}
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
+
+# --- Domaines secondaires et www : redirection permanente (301), chemin conservé.
+{$REDIRECT_DOMAINS} {
+	import securite
+	redir https://{$SITE_DOMAIN}{uri} 301
+}
+
+# --- Santé de Caddy lui-même (port interne, jamais publié).
+:8081 {
+	respond /caddy-health "ok" 200
+}
+
+# --- Compléments propres à l'environnement local (aucun fichier en production).
+import /etc/caddy/local.d/*.caddy
